@@ -1,0 +1,21 @@
+fsspec_db
+=========
+
+.. py:module:: fsspec_db
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   fsspec_db.__version__
+
+
+Package Contents
+----------------
+
+.. py:data:: __version__
+   :value: '0.1.0'
+
+
