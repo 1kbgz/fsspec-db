@@ -1,0 +1,20 @@
+[package]
+name = "fsspec_db"
+version = "0.1.0"
+authors = ["the fsspec-db authors <dev@1kbgz.com>"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "../README.md"
+repository = "https://github.com/1kbgz/fsspec-db"
+description = "Database handling for fsspec filesystems"
+
+[lib]
+name = "fsspec_db"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[dependencies]
+
+[profile.test.junit]
+path = "junit.xml"
+
