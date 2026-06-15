@@ -195,11 +195,11 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul>
-<li class="toctree-l1 has-children"><a class="reference internal" href="autoapi/index.html">API Reference</a><input aria-label="Toggle navigation of API Reference" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="autoapi/test_all/index.html">test_all</a></li>
-<li class="toctree-l2"><a class="reference internal" href="autoapi/fsspec_db/index.html">fsspec_db</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/concepts.html">Concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/paths.html">Paths</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/sqlite.html">SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/python-backends.html">Python Backends</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/api.html">API</a></li>
 </ul>
 
 </div>
@@ -235,14 +235,58 @@
           
 <section class="genindex-section">
   <h1 id="index">Index</h1>
-  <div class="genindex-jumpbox"><a href="#_"><strong>_</strong></a> | <a href="#F"><strong>F</strong></a> | <a href="#M"><strong>M</strong></a> | <a href="#T"><strong>T</strong></a></div>
+  <div class="genindex-jumpbox"><a href="#A"><strong>A</strong></a> | <a href="#C"><strong>C</strong></a> | <a href="#D"><strong>D</strong></a> | <a href="#F"><strong>F</strong></a> | <a href="#I"><strong>I</strong></a> | <a href="#L"><strong>L</strong></a> | <a href="#M"><strong>M</strong></a> | <a href="#P"><strong>P</strong></a> | <a href="#S"><strong>S</strong></a></div>
 </section>
-<section id="_" class="genindex-section">
-  <h2>_</h2>
+<section id="A" class="genindex-section">
+  <h2>A</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="autoapi/fsspec_db/index.html#fsspec_db.__version__">__version__ (in module fsspec_db)</a>
+        <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase">AbstractDatabase (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase">(class in fsspec_db.spec)</a>
 </li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem">AbstractDatabaseFileSystem (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem">(class in fsspec_db.spec)</a>
+</li>
+        </ul></li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="C" class="genindex-section">
+  <h2>C</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.cat_file">cat_file() (fsspec_db.AbstractDatabaseFileSystem method)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.cat_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.cat_file">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.SQLiteDatabaseFileSystem.cat_file">(fsspec_db.SQLiteDatabaseFileSystem method)</a>
+</li>
+        </ul></li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="D" class="genindex-section">
+  <h2>D</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.DBFile">DBFile (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.spec.DBFile">(class in fsspec_db.spec)</a>
+</li>
+        </ul></li>
     </ul></td>
   </tr></table>
 </section>
@@ -255,7 +299,59 @@
     fsspec_db
 
         <ul>
-          <li><a href="autoapi/fsspec_db/index.html#module-fsspec_db">module</a>
+          <li><a href="docs/src/api.html#module-fsspec_db">module</a>
+</li>
+        </ul></li>
+        <li>
+    fsspec_db.spec
+
+        <ul>
+          <li><a href="docs/src/api.html#module-fsspec_db.spec">module</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li>
+    fsspec_db.sqlite
+
+        <ul>
+          <li><a href="docs/src/api.html#module-fsspec_db.sqlite">module</a>
+</li>
+        </ul></li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="I" class="genindex-section">
+  <h2>I</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.info">info() (fsspec_db.AbstractDatabaseFileSystem method)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.info">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.info">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.SQLiteDatabaseFileSystem.info">(fsspec_db.SQLiteDatabaseFileSystem method)</a>
+</li>
+        </ul></li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="L" class="genindex-section">
+  <h2>L</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.ls">ls() (fsspec_db.AbstractDatabaseFileSystem method)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.ls">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.ls">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.SQLiteDatabaseFileSystem.ls">(fsspec_db.SQLiteDatabaseFileSystem method)</a>
 </li>
         </ul></li>
     </ul></td>
@@ -270,30 +366,57 @@
     module
 
         <ul>
-          <li><a href="autoapi/fsspec_db/index.html#module-fsspec_db">fsspec_db</a>
+          <li><a href="docs/src/api.html#module-fsspec_db">fsspec_db</a>
 </li>
-          <li><a href="autoapi/test_all/index.html#module-test_all">test_all</a>
+          <li><a href="docs/src/api.html#module-fsspec_db.spec">fsspec_db.spec</a>
+</li>
+          <li><a href="docs/src/api.html#module-fsspec_db.sqlite">fsspec_db.sqlite</a>
 </li>
         </ul></li>
     </ul></td>
   </tr></table>
 </section>
 
-<section id="T" class="genindex-section">
-  <h2>T</h2>
+<section id="P" class="genindex-section">
+  <h2>P</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li>
-    test_all
+        <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.pipe_file">pipe_file() (fsspec_db.AbstractDatabaseFileSystem method)</a>
 
         <ul>
-          <li><a href="autoapi/test_all/index.html#module-test_all">module</a>
+          <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.pipe_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.pipe_file">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.SQLiteDatabaseFileSystem.pipe_file">(fsspec_db.SQLiteDatabaseFileSystem method)</a>
 </li>
         </ul></li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
-        <li><a href="autoapi/test_all/index.html#test_all.test_all">test_all() (in module test_all)</a>
+        <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.put_file">put_file() (fsspec_db.AbstractDatabaseFileSystem method)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.put_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.put_file">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.SQLiteDatabaseFileSystem.put_file">(fsspec_db.SQLiteDatabaseFileSystem method)</a>
+</li>
+        </ul></li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="S" class="genindex-section">
+  <h2>S</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.SQLiteDatabaseFileSystem">SQLiteDatabaseFileSystem (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem">(class in fsspec_db.sqlite)</a>
+</li>
+        </ul></li>
     </ul></td>
   </tr></table>
 </section>
