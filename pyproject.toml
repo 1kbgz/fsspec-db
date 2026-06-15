@@ -31,9 +31,16 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 
-dependencies = []
+dependencies = [
+    "fsspec",
+    "fsspec-rs",
+    "pyarrow",
+]
 
 [project.optional-dependencies]
+docs = [
+    "yardang",
+]
 develop = [
     "build",
     "bump-my-version",
@@ -51,9 +58,13 @@ develop = [
     "ty",
     "uv",
     "wheel",
+    "yardang",
 ]
 
 [project.scripts]
+
+[project.entry-points."fsspec.specs"]
+"db+sqlite" = "fsspec_db.sqlite.SQLiteDatabaseFileSystem"
 
 [project.urls]
 Repository = "https://github.com/1kbgz/fsspec-db"
@@ -197,6 +208,14 @@ section-order = [
 [tool.yardang]
 title = "fsspec-db"
 root = "README.md"
-pages = []
-use-autoapi = true
-
+pages = [
+    "docs/src/concepts.md",
+    "docs/src/paths.md",
+    "docs/src/sqlite.md",
+    "docs/src/python-backends.md",
+    "docs/src/api.md",
+]
+use-autoapi = false
+exclude_patterns = [
+    "REVIEW.md",
+]

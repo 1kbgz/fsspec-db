@@ -1,34 +1,25 @@
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Example {
-    pub stuff: String,
-}
+pub mod codec;
+pub mod database;
+pub mod error;
+pub mod file;
+pub mod fs;
+pub mod path;
+pub mod sql;
+pub mod sqlite;
+pub mod types;
 
-impl Example {
-    pub fn new(value: String) -> Self {
-        Example { stuff: value }
-    }
-}
-
-/**********************************/
-#[cfg(test)]
-mod example_tests {
-    use super::*;
-
-    #[test]
-    fn test_new() {
-        let e = Example::new(String::from("test"));
-        assert_eq!(e.stuff, String::from("test"));
-    }
-
-    #[test]
-    fn test_clone_and_eq() {
-        let e = Example::new(String::from("test"));
-        assert_eq!(e, e.clone());
-    }
-
-    #[test]
-    fn test_debug() {
-        let e = Example::new(String::from("test"));
-        assert_eq!(format!("{e:?}"), "Example { stuff: \"test\" }");
-    }
-}
+pub use codec::{
+    arrow_to_csv, arrow_to_ipc, arrow_to_jsonl, arrow_to_parquet, csv_to_arrow, format_reader,
+    ipc_to_arrow, jsonl_to_arrow, parquet_to_arrow, rows_to_arrow,
+};
+pub use database::{Database, DbValue, InsertMode, RecordBatchStream};
+pub use error::{DbError, Result};
+pub use fs::DatabaseFs;
+pub use fsspec_rs::{FileInfo, FileSystem, FileType, FsError, OpenMode};
+pub use path::{DataFormat, DbFacet, DbPath, DbPathKind};
+pub use sql::{insert_sql, quote_identifier, select_sql, SelectOptions};
+pub use sqlite::SqliteDatabase;
+pub use types::{
+    ColumnInfo, ConstraintInfo, ConstraintKind, Dialect, IndexInfo, RelationInfo, RelationKind,
+    SchemaInfo,
+};

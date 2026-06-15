@@ -14,7 +14,12 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [dependencies]
+arrow = "54.3.1"
+bytes = "1"
+fsspec_rs = "0.1.1"
+parquet = "54.3.1"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite"] }
+tokio = { version = "1", features = ["rt"] }
 
 [profile.test.junit]
 path = "junit.xml"
-
