@@ -20,6 +20,24 @@ class SQLiteDatabaseFileSystem(fsspec.AbstractFileSystem):
     protocol = ("db+sqlite",)
     root_marker = "/"
 
+    @classmethod
+    def _strip_protocol(cls, path: Any) -> Any:
+        stripped = super()._strip_protocol(path)
+        if isinstance(stripped, list):
+            return [cls._strip_protocol(item) for item in stripped]
+        if stripped == "localhost":
+            return cls.root_marker
+        if stripped.startswith("localhost/"):
+            return stripped.removeprefix("localhost")
+        return stripped
+
+    @classmethod
+    def _get_kwargs_from_urls(cls, path: str) -> dict[str, str]:
+        database = cls._strip_protocol(path)
+        if database == cls.root_marker:
+            return {}
+        return {"database": database}
+
     def __init__(self, database: str | None = None, **storage_options: Any) -> None:
         source = database or storage_options.pop("path", None) or storage_options.pop("url", None)
         if source is None:
