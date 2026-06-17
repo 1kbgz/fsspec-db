@@ -237,6 +237,28 @@ def test_sqlite_filesystem_registered_and_reads(tmp_path):
     assert queried.column("name").to_pylist() == ["ada", "grace"]
 
 
+def test_sqlite_filesystem_url_path_reads(tmp_path, monkeypatch):
+    path = tmp_path / "app.db"
+    with sqlite3.connect(path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL
+            );
+            INSERT INTO users (name) VALUES ('ada');
+            """
+        )
+
+    monkeypatch.chdir(tmp_path)
+    fs, token = fsspec.core.url_to_fs("db+sqlite://app.db")
+
+    assert token == "app.db"
+    assert isinstance(fs, SQLiteDatabaseFileSystem)
+    assert fs.database == "app.db"
+    assert fs.query("SELECT name FROM users").column("name").to_pylist() == ["ada"]
+
+
 def test_sqlite_filesystem_writes_and_puts(tmp_path):
     path = tmp_path / "app.db"
     with sqlite3.connect(path) as conn:

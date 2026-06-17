@@ -658,7 +658,9 @@ dependencies = [
 
 [[package]]
 name = "fsspec_rs"
-version = "0.1.1"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f624a596c2484433ab2c3fccd4fd2de8911bf98f4a36e140ff0efb3b5163467"
 dependencies = [
  "bytes",
  "object_store",
