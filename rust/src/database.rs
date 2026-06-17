@@ -5,6 +5,12 @@ use crate::Result;
 
 pub type RecordBatchStream = Box<dyn RecordBatchReader + Send>;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ArrowExtraction {
+    SqlxRows,
+    NativeArrow(&'static str),
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum DbValue {
     Null,
@@ -23,6 +29,10 @@ pub enum InsertMode {
 
 pub trait Database: Send + Sync {
     fn dialect(&self) -> Dialect;
+
+    fn arrow_extraction(&self) -> ArrowExtraction {
+        ArrowExtraction::SqlxRows
+    }
 
     fn list_schemas(&self) -> Result<Vec<SchemaInfo>>;
 

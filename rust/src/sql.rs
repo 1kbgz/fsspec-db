@@ -152,4 +152,20 @@ mod tests {
             "INSERT INTO \"public\".\"users\" (\"id\", \"name\") VALUES ($1, $2), ($3, $4)"
         );
     }
+
+    #[test]
+    fn builds_mysql_insert() {
+        let sql = insert_sql(
+            &Dialect::MySql,
+            "app",
+            "users",
+            &["id".to_string(), "name".to_string()],
+            2,
+        )
+        .unwrap();
+        assert_eq!(
+            sql,
+            "INSERT INTO `app`.`users` (`id`, `name`) VALUES (?, ?), (?, ?)"
+        );
+    }
 }

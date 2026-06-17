@@ -716,6 +716,7 @@ impl ColumnValues {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::ArrowExtraction;
 
     fn seeded_db() -> SqliteDatabase {
         let db = SqliteDatabase::connect(":memory:").unwrap();
@@ -749,6 +750,7 @@ mod tests {
     #[test]
     fn introspects_sqlite_database() {
         let db = seeded_db();
+        assert_eq!(db.arrow_extraction(), ArrowExtraction::SqlxRows);
 
         assert_eq!(db.list_schemas().unwrap()[0].name, "main");
         let relations = db.list_relations("main").unwrap();
