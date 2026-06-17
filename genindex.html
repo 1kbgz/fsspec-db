@@ -198,6 +198,7 @@
 <li class="toctree-l1"><a class="reference internal" href="docs/src/concepts.html">Concepts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/paths.html">Paths</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/sqlite.html">SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/sql-backends.html">PostgreSQL and MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/python-backends.html">Python Backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/api.html">API</a></li>
 </ul>
@@ -266,6 +267,14 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.cat_file">cat_file() (fsspec_db.AbstractDatabaseFileSystem method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.mysql.MySQLDatabaseFileSystem.cat_file">(fsspec_db.mysql.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.MySQLDatabaseFileSystem.cat_file">(fsspec_db.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.postgres.PostgresDatabaseFileSystem.cat_file">(fsspec_db.postgres.PostgresDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.PostgresDatabaseFileSystem.cat_file">(fsspec_db.PostgresDatabaseFileSystem method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.cat_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.cat_file">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
@@ -303,14 +312,28 @@
 </li>
         </ul></li>
         <li>
+    fsspec_db.mysql
+
+        <ul>
+          <li><a href="docs/src/api.html#module-fsspec_db.mysql">module</a>
+</li>
+        </ul></li>
+        <li>
+    fsspec_db.postgres
+
+        <ul>
+          <li><a href="docs/src/api.html#module-fsspec_db.postgres">module</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li>
     fsspec_db.spec
 
         <ul>
           <li><a href="docs/src/api.html#module-fsspec_db.spec">module</a>
 </li>
         </ul></li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li>
     fsspec_db.sqlite
 
@@ -329,6 +352,14 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.info">info() (fsspec_db.AbstractDatabaseFileSystem method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.mysql.MySQLDatabaseFileSystem.info">(fsspec_db.mysql.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.MySQLDatabaseFileSystem.info">(fsspec_db.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.postgres.PostgresDatabaseFileSystem.info">(fsspec_db.postgres.PostgresDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.PostgresDatabaseFileSystem.info">(fsspec_db.PostgresDatabaseFileSystem method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.info">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.info">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
@@ -347,6 +378,14 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.ls">ls() (fsspec_db.AbstractDatabaseFileSystem method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.mysql.MySQLDatabaseFileSystem.ls">(fsspec_db.mysql.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.MySQLDatabaseFileSystem.ls">(fsspec_db.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.postgres.PostgresDatabaseFileSystem.ls">(fsspec_db.postgres.PostgresDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.PostgresDatabaseFileSystem.ls">(fsspec_db.PostgresDatabaseFileSystem method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.ls">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.ls">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
@@ -368,9 +407,21 @@
         <ul>
           <li><a href="docs/src/api.html#module-fsspec_db">fsspec_db</a>
 </li>
+          <li><a href="docs/src/api.html#module-fsspec_db.mysql">fsspec_db.mysql</a>
+</li>
+          <li><a href="docs/src/api.html#module-fsspec_db.postgres">fsspec_db.postgres</a>
+</li>
           <li><a href="docs/src/api.html#module-fsspec_db.spec">fsspec_db.spec</a>
 </li>
           <li><a href="docs/src/api.html#module-fsspec_db.sqlite">fsspec_db.sqlite</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.MySQLDatabaseFileSystem">MySQLDatabaseFileSystem (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.mysql.MySQLDatabaseFileSystem">(class in fsspec_db.mysql)</a>
 </li>
         </ul></li>
     </ul></td>
@@ -384,6 +435,14 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.pipe_file">pipe_file() (fsspec_db.AbstractDatabaseFileSystem method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.mysql.MySQLDatabaseFileSystem.pipe_file">(fsspec_db.mysql.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.MySQLDatabaseFileSystem.pipe_file">(fsspec_db.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.postgres.PostgresDatabaseFileSystem.pipe_file">(fsspec_db.postgres.PostgresDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.PostgresDatabaseFileSystem.pipe_file">(fsspec_db.PostgresDatabaseFileSystem method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.pipe_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.pipe_file">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
@@ -391,11 +450,25 @@
           <li><a href="docs/src/api.html#fsspec_db.SQLiteDatabaseFileSystem.pipe_file">(fsspec_db.SQLiteDatabaseFileSystem method)</a>
 </li>
         </ul></li>
+        <li><a href="docs/src/api.html#fsspec_db.PostgresDatabaseFileSystem">PostgresDatabaseFileSystem (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.postgres.PostgresDatabaseFileSystem">(class in fsspec_db.postgres)</a>
+</li>
+        </ul></li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabaseFileSystem.put_file">put_file() (fsspec_db.AbstractDatabaseFileSystem method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.mysql.MySQLDatabaseFileSystem.put_file">(fsspec_db.mysql.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.MySQLDatabaseFileSystem.put_file">(fsspec_db.MySQLDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.postgres.PostgresDatabaseFileSystem.put_file">(fsspec_db.postgres.PostgresDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.PostgresDatabaseFileSystem.put_file">(fsspec_db.PostgresDatabaseFileSystem method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.put_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.put_file">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>

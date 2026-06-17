@@ -200,6 +200,7 @@
 <li class="toctree-l1"><a class="reference internal" href="docs/src/concepts.html">Concepts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/paths.html">Paths</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/sqlite.html">SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/sql-backends.html">PostgreSQL and MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/python-backends.html">Python Backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/api.html">API</a></li>
 </ul>
@@ -260,7 +261,8 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">query(&quot;SELECT</span> <span class="pre">...&quot;)</span></code> returns a <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">open(&quot;/main/users.arrow&quot;,</span> <span class="pre">&quot;wb&quot;)</span></code> or <code class="docutils literal notranslate"><span class="pre">put_file(...,</span> <span class="pre">&quot;/main/users.parquet&quot;)</span></code> inserts rows.</p></li>
 </ul>
-<p>SQLite is the first native backend and is registered as <code class="docutils literal notranslate"><span class="pre">db+sqlite</span></code>.</p>
+<p>Native backends are registered as <code class="docutils literal notranslate"><span class="pre">db+sqlite</span></code>, <code class="docutils literal notranslate"><span class="pre">db+postgresql</span></code> / <code class="docutils literal notranslate"><span class="pre">db+postgres</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">db+mysql</span></code>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Database overwrite writes replace table contents. <code class="docutils literal notranslate"><span class="pre">open(path,</span> <span class="pre">&quot;wb&quot;)</span></code>, <code class="docutils literal notranslate"><span class="pre">pipe_file</span></code>, and
@@ -310,7 +312,8 @@ default <code class="docutils literal notranslate"><span class="pre">put_file</s
 </section>
 <section id="documentation">
 <h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">¶</a></h2>
-<p>The full yardang/Sphinx docs cover concepts, path semantics, SQLite reads and writes, Python-defined backends, and the API reference.</p>
+<p>The full yardang/Sphinx docs cover concepts, path semantics, native SQL backends,
+Python-defined backends, and the API reference.</p>
 </section>
 </section>
 

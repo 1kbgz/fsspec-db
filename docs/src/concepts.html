@@ -200,6 +200,7 @@
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Concepts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="paths.html">Paths</a></li>
 <li class="toctree-l1"><a class="reference internal" href="sqlite.html">SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sql-backends.html">PostgreSQL and MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="python-backends.html">Python Backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
@@ -258,8 +259,9 @@ encoding/decoding.</p></li>
 to the PyO3 bridge. Python gets normal fsspec behavior while Rust remains the source of
 truth for database path semantics.</p></li>
 </ol>
-<p>The native SQLite backend uses sqlx. Python-defined databases implement <code class="docutils literal notranslate"><span class="pre">AbstractDatabase</span></code>;
-the reverse bridge lets Rust call that Python object through the same <code class="docutils literal notranslate"><span class="pre">DatabaseFs</span></code> path.</p>
+<p>The native SQLite, PostgreSQL, and MySQL backends use sqlx. Python-defined databases
+implement <code class="docutils literal notranslate"><span class="pre">AbstractDatabase</span></code>; the reverse bridge lets Rust call that Python object through
+the same <code class="docutils literal notranslate"><span class="pre">DatabaseFs</span></code> path.</p>
 </section>
 <section id="data-model">
 <h2>Data Model<a class="headerlink" href="#data-model" title="Link to this heading">¶</a></h2>
@@ -385,10 +387,10 @@ be a guarded later feature.</p>
 </section>
 <section id="boundaries">
 <h2>Boundaries<a class="headerlink" href="#boundaries" title="Link to this heading">¶</a></h2>
-<p>Current native support is SQLite. The SQLite backend handles common Arrow scalar types:
-booleans, integers, floats, UTF-8 strings, binary values, all-null columns, and temporal
-arrays stored as integer epoch values. SQLite is dynamically typed, so mixed-type expression
-columns can still require user-side casts.</p>
+<p>Current native support is SQLite, PostgreSQL, and MySQL. These backends handle common
+Arrow scalar types: booleans, integers, floats, UTF-8 strings, binary values, and all-null
+columns. SQLite also binds temporal arrays as integer epoch values. Decimal, temporal, and
+specialized PostgreSQL/MySQL types should be cast in SQL until richer Arrow mappings land.</p>
 </section>
 </section>
 
