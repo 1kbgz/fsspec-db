@@ -17,8 +17,9 @@ The implementation has three layers:
    to the PyO3 bridge. Python gets normal fsspec behavior while Rust remains the source of
    truth for database path semantics.
 
-The native SQLite backend uses sqlx. Python-defined databases implement `AbstractDatabase`;
-the reverse bridge lets Rust call that Python object through the same `DatabaseFs` path.
+The native SQLite, PostgreSQL, and MySQL backends use sqlx. Python-defined databases
+implement `AbstractDatabase`; the reverse bridge lets Rust call that Python object through
+the same `DatabaseFs` path.
 
 ## Data Model
 
@@ -75,7 +76,7 @@ be a guarded later feature.
 
 ## Boundaries
 
-Current native support is SQLite. The SQLite backend handles common Arrow scalar types:
-booleans, integers, floats, UTF-8 strings, binary values, all-null columns, and temporal
-arrays stored as integer epoch values. SQLite is dynamically typed, so mixed-type expression
-columns can still require user-side casts.
+Current native support is SQLite, PostgreSQL, and MySQL. These backends handle common
+Arrow scalar types: booleans, integers, floats, UTF-8 strings, binary values, and all-null
+columns. SQLite also binds temporal arrays as integer epoch values. Decimal, temporal, and
+specialized PostgreSQL/MySQL types should be cast in SQL until richer Arrow mappings land.

@@ -1,7 +1,8 @@
 # API
 
 The public Python API is intentionally small. Most users construct filesystems through
-`fsspec.filesystem("db+sqlite", ...)`; backend authors use `AbstractDatabase` and
+`fsspec.filesystem("db+sqlite", ...)`, `fsspec.filesystem("db+postgresql", ...)`, or
+`fsspec.filesystem("db+mysql", ...)`; backend authors use `AbstractDatabase` and
 `AbstractDatabaseFileSystem`.
 
 ## Package Exports
@@ -24,5 +25,21 @@ The public Python API is intentionally small. Most users construct filesystems t
 ```{eval-rst}
 .. automodule:: fsspec_db.sqlite
    :members: SQLiteDatabaseFileSystem
+   :show-inheritance:
+```
+
+## PostgreSQL Backend
+
+```{eval-rst}
+.. automodule:: fsspec_db.postgres
+   :members: PostgresDatabaseFileSystem
+   :show-inheritance:
+```
+
+## MySQL Backend
+
+```{eval-rst}
+.. automodule:: fsspec_db.mysql
+   :members: MySQLDatabaseFileSystem
    :show-inheritance:
 ```

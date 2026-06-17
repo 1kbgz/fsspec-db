@@ -64,6 +64,9 @@ develop = [
 [project.scripts]
 
 [project.entry-points."fsspec.specs"]
+"db+mysql" = "fsspec_db.mysql.MySQLDatabaseFileSystem"
+"db+postgres" = "fsspec_db.postgres.PostgresDatabaseFileSystem"
+"db+postgresql" = "fsspec_db.postgres.PostgresDatabaseFileSystem"
 "db+sqlite" = "fsspec_db.sqlite.SQLiteDatabaseFileSystem"
 
 [project.urls]
@@ -212,6 +215,7 @@ pages = [
     "docs/src/concepts.md",
     "docs/src/paths.md",
     "docs/src/sqlite.md",
+    "docs/src/sql-backends.md",
     "docs/src/python-backends.md",
     "docs/src/api.md",
 ]

@@ -9,8 +9,8 @@ use pyo3::types::{PyBool, PyBytes, PyDict, PyList};
 
 use fsspec_db::{
     arrow_to_ipc, ipc_to_arrow, ColumnInfo, ConstraintInfo, ConstraintKind, Database, DatabaseFs,
-    DbError, DbValue, Dialect, FileSystem, FsError, IndexInfo, InsertMode, RecordBatchStream,
-    RelationInfo, RelationKind, SchemaInfo, SqliteDatabase,
+    DbError, DbValue, Dialect, FileSystem, FsError, IndexInfo, InsertMode, MySqlDatabase,
+    PostgresDatabase, RecordBatchStream, RelationInfo, RelationKind, SchemaInfo, SqliteDatabase,
 };
 
 use crate::types::file_info_to_dict;
@@ -232,6 +232,186 @@ impl PySqliteDatabaseFs {
     fn py_new(source: &str) -> PyResult<Self> {
         Ok(Self {
             inner: DatabaseFs::new(SqliteDatabase::connect(source).map_err(db_error_to_pyerr)?),
+        })
+    }
+
+    fn protocol(&self) -> Vec<String> {
+        self.inner
+            .protocol()
+            .iter()
+            .map(|protocol| protocol.to_string())
+            .collect()
+    }
+
+    #[pyo3(signature = (path, detail = true))]
+    fn ls<'py>(&self, py: Python<'py>, path: &str, detail: bool) -> PyResult<Py<PyAny>> {
+        let entries = py
+            .detach(|| self.inner.ls(path, detail))
+            .map_err(fs_error_to_pyerr)?;
+        if detail {
+            let list = PyList::empty(py);
+            for info in entries {
+                list.append(file_info_to_dict(py, &info)?)?;
+            }
+            Ok(list.into_any().unbind())
+        } else {
+            let names = entries.into_iter().map(|entry| entry.name);
+            Ok(PyList::new(py, names)?.into_any().unbind())
+        }
+    }
+
+    fn info<'py>(&self, py: Python<'py>, path: &str) -> PyResult<Bound<'py, PyDict>> {
+        let info = py
+            .detach(|| self.inner.info(path))
+            .map_err(fs_error_to_pyerr)?;
+        file_info_to_dict(py, &info)
+    }
+
+    #[pyo3(signature = (path, start = None, end = None))]
+    fn cat_file(
+        &self,
+        py: Python<'_>,
+        path: &str,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> PyResult<Vec<u8>> {
+        py.detach(|| self.inner.cat_file(path, start, end))
+            .map_err(fs_error_to_pyerr)
+    }
+
+    #[pyo3(signature = (sql, params = None))]
+    fn query_arrow(
+        &self,
+        py: Python<'_>,
+        sql: &str,
+        params: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Vec<u8>> {
+        let values = match params {
+            Some(params) if !params.is_none() => py_params_to_db_values(params)?,
+            _ => Vec::new(),
+        };
+        let reader = py
+            .detach(|| self.inner.database().query(sql, &values))
+            .map_err(db_error_to_pyerr)?;
+        arrow_to_ipc(reader).map_err(db_error_to_pyerr)
+    }
+
+    #[pyo3(signature = (path, data, mode = "wb"))]
+    fn write_file(
+        &self,
+        py: Python<'_>,
+        path: &str,
+        data: &Bound<'_, PyBytes>,
+        mode: &str,
+    ) -> PyResult<u64> {
+        let data = data.as_bytes().to_vec();
+        let mode = parse_insert_mode(mode)?;
+        py.detach(|| self.inner.write_bytes(path, &data, mode))
+            .map_err(db_error_to_pyerr)
+    }
+}
+
+#[pyclass(name = "RustPostgresDatabaseFs", skip_from_py_object)]
+pub struct PyPostgresDatabaseFs {
+    inner: DatabaseFs<PostgresDatabase>,
+}
+
+#[pymethods]
+impl PyPostgresDatabaseFs {
+    #[new]
+    fn py_new(source: &str) -> PyResult<Self> {
+        Ok(Self {
+            inner: DatabaseFs::new(PostgresDatabase::connect(source).map_err(db_error_to_pyerr)?),
+        })
+    }
+
+    fn protocol(&self) -> Vec<String> {
+        self.inner
+            .protocol()
+            .iter()
+            .map(|protocol| protocol.to_string())
+            .collect()
+    }
+
+    #[pyo3(signature = (path, detail = true))]
+    fn ls<'py>(&self, py: Python<'py>, path: &str, detail: bool) -> PyResult<Py<PyAny>> {
+        let entries = py
+            .detach(|| self.inner.ls(path, detail))
+            .map_err(fs_error_to_pyerr)?;
+        if detail {
+            let list = PyList::empty(py);
+            for info in entries {
+                list.append(file_info_to_dict(py, &info)?)?;
+            }
+            Ok(list.into_any().unbind())
+        } else {
+            let names = entries.into_iter().map(|entry| entry.name);
+            Ok(PyList::new(py, names)?.into_any().unbind())
+        }
+    }
+
+    fn info<'py>(&self, py: Python<'py>, path: &str) -> PyResult<Bound<'py, PyDict>> {
+        let info = py
+            .detach(|| self.inner.info(path))
+            .map_err(fs_error_to_pyerr)?;
+        file_info_to_dict(py, &info)
+    }
+
+    #[pyo3(signature = (path, start = None, end = None))]
+    fn cat_file(
+        &self,
+        py: Python<'_>,
+        path: &str,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> PyResult<Vec<u8>> {
+        py.detach(|| self.inner.cat_file(path, start, end))
+            .map_err(fs_error_to_pyerr)
+    }
+
+    #[pyo3(signature = (sql, params = None))]
+    fn query_arrow(
+        &self,
+        py: Python<'_>,
+        sql: &str,
+        params: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Vec<u8>> {
+        let values = match params {
+            Some(params) if !params.is_none() => py_params_to_db_values(params)?,
+            _ => Vec::new(),
+        };
+        let reader = py
+            .detach(|| self.inner.database().query(sql, &values))
+            .map_err(db_error_to_pyerr)?;
+        arrow_to_ipc(reader).map_err(db_error_to_pyerr)
+    }
+
+    #[pyo3(signature = (path, data, mode = "wb"))]
+    fn write_file(
+        &self,
+        py: Python<'_>,
+        path: &str,
+        data: &Bound<'_, PyBytes>,
+        mode: &str,
+    ) -> PyResult<u64> {
+        let data = data.as_bytes().to_vec();
+        let mode = parse_insert_mode(mode)?;
+        py.detach(|| self.inner.write_bytes(path, &data, mode))
+            .map_err(db_error_to_pyerr)
+    }
+}
+
+#[pyclass(name = "RustMySqlDatabaseFs", skip_from_py_object)]
+pub struct PyMySqlDatabaseFs {
+    inner: DatabaseFs<MySqlDatabase>,
+}
+
+#[pymethods]
+impl PyMySqlDatabaseFs {
+    #[new]
+    fn py_new(source: &str) -> PyResult<Self> {
+        Ok(Self {
+            inner: DatabaseFs::new(MySqlDatabase::connect(source).map_err(db_error_to_pyerr)?),
         })
     }
 

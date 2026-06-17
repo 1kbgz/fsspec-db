@@ -12,10 +12,14 @@ from fsspec_db import (
     ColumnInfo,
     ConstraintInfo,
     IndexInfo,
+    MySQLDatabaseFileSystem,
+    PostgresDatabaseFileSystem,
     RelationInfo,
     SchemaInfo,
     SQLiteDatabaseFileSystem,
 )
+from fsspec_db.mysql import _dsn_from_options as mysql_dsn_from_options
+from fsspec_db.postgres import _dsn_from_options
 
 
 class MockDatabase(AbstractDatabase):
@@ -257,6 +261,44 @@ def test_sqlite_filesystem_url_path_reads(tmp_path, monkeypatch):
     assert isinstance(fs, SQLiteDatabaseFileSystem)
     assert fs.database == "app.db"
     assert fs.query("SELECT name FROM users").column("name").to_pylist() == ["ada"]
+
+
+def test_postgres_filesystem_url_parsing_and_registration():
+    assert fsspec.get_filesystem_class("db+postgresql") is PostgresDatabaseFileSystem
+    assert PostgresDatabaseFileSystem._get_kwargs_from_urls("db+postgresql://user:pass@localhost:5432/app?sslmode=require") == {
+        "dsn": "postgresql://user:pass@localhost:5432/app?sslmode=require"
+    }
+    assert PostgresDatabaseFileSystem._get_kwargs_from_urls("db+postgres://localhost/app") == {"dsn": "postgres://localhost/app"}
+
+    options = {
+        "host": "localhost",
+        "port": 5432,
+        "database": "app",
+        "user": "ada",
+        "password": "secret",
+        "sslmode": "require",
+    }
+    assert _dsn_from_options(options) == ("postgresql://ada:secret@localhost:5432/app?sslmode=require")
+    assert options == {}
+
+
+def test_mysql_filesystem_url_parsing_and_registration():
+    assert fsspec.get_filesystem_class("db+mysql") is MySQLDatabaseFileSystem
+    assert MySQLDatabaseFileSystem._get_kwargs_from_urls("db+mysql://user:pass@localhost:3306/app?ssl-mode=REQUIRED") == {
+        "dsn": "mysql://user:pass@localhost:3306/app?ssl-mode=REQUIRED"
+    }
+
+    options = {
+        "host": "localhost",
+        "port": 3306,
+        "database": "app",
+        "user": "ada",
+        "password": "secret",
+        "ssl_mode": "REQUIRED",
+        "charset": "utf8mb4",
+    }
+    assert mysql_dsn_from_options(options) == ("mysql://ada:secret@localhost:3306/app?ssl-mode=REQUIRED&charset=utf8mb4")
+    assert options == {}
 
 
 def test_sqlite_filesystem_writes_and_puts(tmp_path):

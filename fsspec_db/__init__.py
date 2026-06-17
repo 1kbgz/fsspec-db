@@ -1,3 +1,5 @@
+from .mysql import MySQLDatabaseFileSystem
+from .postgres import PostgresDatabaseFileSystem
 from .spec import (
     AbstractDatabase,
     AbstractDatabaseFileSystem,
@@ -19,6 +21,8 @@ __all__ = [
     "ConstraintInfo",
     "DBFile",
     "IndexInfo",
+    "MySQLDatabaseFileSystem",
+    "PostgresDatabaseFileSystem",
     "RelationInfo",
     "SchemaInfo",
     "SQLiteDatabaseFileSystem",

@@ -18,7 +18,8 @@ Database tables and views as fsspec filesystems.
 - `query("SELECT ...")` returns a `pyarrow.Table`.
 - `open("/main/users.arrow", "wb")` or `put_file(..., "/main/users.parquet")` inserts rows.
 
-SQLite is the first native backend and is registered as `db+sqlite`.
+Native backends are registered as `db+sqlite`, `db+postgresql` / `db+postgres`, and
+`db+mysql`.
 
 > [!WARNING]
 > Database overwrite writes replace table contents. `open(path, "wb")`, `pipe_file`, and
@@ -67,4 +68,5 @@ with fs.open("/main/users.arrow", "ab") as file:
 
 ## Documentation
 
-The full yardang/Sphinx docs cover concepts, path semantics, SQLite reads and writes, Python-defined backends, and the API reference.
+The full yardang/Sphinx docs cover concepts, path semantics, native SQL backends,
+Python-defined backends, and the API reference.
