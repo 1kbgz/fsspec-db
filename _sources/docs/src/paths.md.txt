@@ -22,6 +22,8 @@ fs.ls("/main")
 | `/{schema}/{relation}/indexes/{index}`          | Index metadata item.                          |
 | `/{schema}/{relation}/constraints`              | Constraint facet directory.                   |
 | `/{schema}/{relation}/constraints/{constraint}` | Constraint metadata item.                     |
+| `/{schema}/{view}/depends_on`                   | View dependency facet directory.              |
+| `/{schema}/{view}/depends_on/{relation}`        | A relation the view reads, with `target`.     |
 | `/{schema}/{view}/definition.sql`               | View definition SQL.                          |
 | `/{schema}/{relation}.arrow`                    | Materialized relation as Arrow IPC stream.    |
 | `/{schema}/{relation}.parquet`                  | Materialized relation as Parquet.             |
@@ -63,19 +65,34 @@ type, nullability, ordinal position, and primary-key status.
 
 ## Read Shaping
 
-Two query parameters are available on materialized relation paths:
+Three query parameters are available on materialized relation paths:
 
-| Parameter | Example                             | Status                 |
-| --------- | ----------------------------------- | ---------------------- |
-| `columns` | `/main/users.arrow?columns=id,name` | Selects a column list. |
-| `limit`   | `/main/users.parquet?limit=100`     | Adds `LIMIT`.          |
+| Parameter | Example                              | Status                                |
+| --------- | ------------------------------------ | ------------------------------------- |
+| `columns` | `/main/users.arrow?columns=id,name`  | Selects a column list.                |
+| `limit`   | `/main/users.parquet?limit=100`      | Adds `LIMIT`.                         |
+| `where`   | `/main/users.arrow?where=score > 10` | Adds a `WHERE` predicate (see below). |
 
-Predicate pushdown with `where=` is intentionally rejected until the SQL parser layer lands.
-Use `fs.query()` for arbitrary SQL today.
+Query values are URL-decoded, so percent-encoded predicates such as
+`?where=score%20%3E%2010` are equivalent to the unencoded form.
 
 ```python
-data = fs.cat_file("/main/users.arrow?columns=id,name&limit=10")
+data = fs.cat_file("/main/users.arrow?columns=id,name&limit=10&where=id > 0")
 ```
+
+### `where` predicate pushdown
+
+The `where` value is parsed as a single boolean SQL expression with a dialect-aware parser,
+re-serialized from its AST, and appended as a `WHERE` clause. Because only a parsed expression
+is ever emitted, multi-statement or non-expression payloads are rejected with a `ValueError`
+rather than interpolated:
+
+```python
+fs.cat_file("/main/users.arrow?where=score > 10")          # ok
+fs.cat_file("/main/users.arrow?where=1); DROP TABLE x;--")  # rejected
+```
+
+For arbitrary SQL beyond a single predicate, use `fs.query()`.
 
 ## Write Paths
 

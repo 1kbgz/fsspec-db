@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="SQLite" href="sqlite.html"><link rel="prev" title="Concepts" href="concepts.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>Paths - fsspec-db v0.1.0</title>
+        <title>Paths - fsspec-db v0.1.1</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
@@ -167,7 +167,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">fsspec-db <code style='font-size: var(--font-size--small--4);color: var(--sd-color-primary);'>v0.1.0</code></div></a>
+      <a href="../../index.html"><div class="brand">fsspec-db <code style='font-size: var(--font-size--small--4);color: var(--sd-color-primary);'>v0.1.1</code></div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -188,7 +188,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
   
-  <span class="sidebar-brand-text">fsspec-db <code style='font-size: var(--font-size--small--4);color: var(--sd-color-primary);'>v0.1.0</code></span>
+  <span class="sidebar-brand-text">fsspec-db <code style='font-size: var(--font-size--small--4);color: var(--sd-color-primary);'>v0.1.1</code></span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -287,6 +287,12 @@
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/{schema}/{relation}/constraints/{constraint}</span></code></p></td>
 <td><p>Constraint metadata item.</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/{schema}/{view}/depends_on</span></code></p></td>
+<td><p>View dependency facet directory.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/{schema}/{view}/depends_on/{relation}</span></code></p></td>
+<td><p>A relation the view reads, with <code class="docutils literal notranslate"><span class="pre">target</span></code>.</p></td>
+</tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/{schema}/{view}/definition.sql</span></code></p></td>
 <td><p>View definition SQL.</p></td>
 </tr>
@@ -339,7 +345,7 @@ type, nullability, ordinal position, and primary-key status.</p>
 </section>
 <section id="read-shaping">
 <h2>Read Shaping<a class="headerlink" href="#read-shaping" title="Link to this heading">¶</a></h2>
-<p>Two query parameters are available on materialized relation paths:</p>
+<p>Three query parameters are available on materialized relation paths:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -357,14 +363,30 @@ type, nullability, ordinal position, and primary-key status.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">/main/users.parquet?limit=100</span></code></p></td>
 <td><p>Adds <code class="docutils literal notranslate"><span class="pre">LIMIT</span></code>.</p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">where</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/main/users.arrow?where=score</span> <span class="pre">&gt;</span> <span class="pre">10</span></code></p></td>
+<td><p>Adds a <code class="docutils literal notranslate"><span class="pre">WHERE</span></code> predicate (see below).</p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>Predicate pushdown with <code class="docutils literal notranslate"><span class="pre">where=</span></code> is intentionally rejected until the SQL parser layer lands.
-Use <code class="docutils literal notranslate"><span class="pre">fs.query()</span></code> for arbitrary SQL today.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow?columns=id,name&amp;limit=10&quot;</span><span class="p">)</span>
+<p>Query values are URL-decoded, so percent-encoded predicates such as
+<code class="docutils literal notranslate"><span class="pre">?where=score%20%3E%2010</span></code> are equivalent to the unencoded form.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow?columns=id,name&amp;limit=10&amp;where=id &gt; 0&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<section id="where-predicate-pushdown">
+<h3><code class="docutils literal notranslate"><span class="pre">where</span></code> predicate pushdown<a class="headerlink" href="#where-predicate-pushdown" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">where</span></code> value is parsed as a single boolean SQL expression with a dialect-aware parser,
+re-serialized from its AST, and appended as a <code class="docutils literal notranslate"><span class="pre">WHERE</span></code> clause. Because only a parsed expression
+is ever emitted, multi-statement or non-expression payloads are rejected with a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>
+rather than interpolated:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow?where=score &gt; 10&quot;</span><span class="p">)</span>          <span class="c1"># ok</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow?where=1); DROP TABLE x;--&quot;</span><span class="p">)</span>  <span class="c1"># rejected</span>
+</pre></div>
+</div>
+<p>For arbitrary SQL beyond a single predicate, use <code class="docutils literal notranslate"><span class="pre">fs.query()</span></code>.</p>
+</section>
 </section>
 <section id="write-paths">
 <h2>Write Paths<a class="headerlink" href="#write-paths" title="Link to this heading">¶</a></h2>
@@ -437,7 +459,10 @@ schema. <code class="docutils literal notranslate"><span class="pre">.csv</span>
 <li><a class="reference internal" href="#grammar">Grammar</a></li>
 <li><a class="reference internal" href="#listing">Listing</a></li>
 <li><a class="reference internal" href="#metadata">Metadata</a></li>
-<li><a class="reference internal" href="#read-shaping">Read Shaping</a></li>
+<li><a class="reference internal" href="#read-shaping">Read Shaping</a><ul>
+<li><a class="reference internal" href="#where-predicate-pushdown"><code class="docutils literal notranslate"><span class="pre">where</span></code> predicate pushdown</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#write-paths">Write Paths</a></li>
 </ul>
 </li>
@@ -450,7 +475,7 @@ schema. <code class="docutils literal notranslate"><span class="pre">.csv</span>
       
     </aside>
   </div>
-</div><script src="../../_static/documentation_options.js?v=01f34227"></script>
+</div><script src="../../_static/documentation_options.js?v=a58bc63e"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
