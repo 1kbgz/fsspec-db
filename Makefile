@@ -126,8 +126,10 @@ COMPOSE ?= podman-compose
 COMPOSE_FILE ?= ci/docker-compose.yml
 FSSPEC_DB_POSTGRES_URL ?= postgresql://fsspec:fsspec@127.0.0.1:55432/fsspec
 FSSPEC_DB_MYSQL_URL ?= mysql://fsspec:fsspec@127.0.0.1:53306/fsspec
-export FSSPEC_DB_POSTGRES_URL
-export FSSPEC_DB_MYSQL_URL
+# NOTE: do not `export` these globally. They are passed only to the integration
+# recipes below, so a plain `make test`/`make coverage` does not put them in the
+# environment and trigger the env-gated Postgres/MySQL integration tests (which
+# would fail without a live database).
 
 .PHONY: dbs-up dbs-wait dbs-down dbs-logs test-integration test-integration-rs test-integration-py
 
@@ -152,10 +154,10 @@ dbs-logs:  ## tail the database fixture logs
 	$(COMPOSE) -f $(COMPOSE_FILE) logs -f
 
 test-integration-rs:  ## run the env-gated rust integration tests
-	make -C rust test
+	FSSPEC_DB_POSTGRES_URL="$(FSSPEC_DB_POSTGRES_URL)" FSSPEC_DB_MYSQL_URL="$(FSSPEC_DB_MYSQL_URL)" $(MAKE) -C rust test
 
 test-integration-py:  ## run the env-gated python integration tests
-	python -m pytest -v fsspec_db/tests/test_integration.py
+	FSSPEC_DB_POSTGRES_URL="$(FSSPEC_DB_POSTGRES_URL)" FSSPEC_DB_MYSQL_URL="$(FSSPEC_DB_MYSQL_URL)" python -m pytest -v fsspec_db/tests/test_integration.py
 
 test-integration: dbs-up dbs-wait test-integration-rs test-integration-py  ## bring up dbs and run all integration tests
 
