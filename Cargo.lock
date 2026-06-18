@@ -757,7 +757,7 @@ dependencies = [
 
 [[package]]
 name = "fsspec_db"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arrow",
  "bytes",
@@ -770,7 +770,7 @@ dependencies = [
 
 [[package]]
 name = "fsspec_db_py"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "fsspec_db",
  "pyo3",
