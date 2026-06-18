@@ -3,14 +3,17 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use arrow::array::{
-    Array, ArrayRef, BinaryArray, BooleanArray, Float32Array, Float64Array, Int16Array, Int32Array,
-    Int64Array, Int8Array, LargeBinaryArray, LargeStringArray, StringArray, UInt16Array,
-    UInt32Array, UInt64Array, UInt8Array,
+    Array, ArrayRef, BinaryArray, BooleanArray, Date32Array, Float32Array, Float64Array,
+    Int16Array, Int32Array, Int64Array, Int8Array, LargeBinaryArray, LargeStringArray, StringArray,
+    Time64MicrosecondArray, TimestampMicrosecondArray, UInt16Array, UInt32Array, UInt64Array,
+    UInt8Array,
 };
-use arrow::datatypes::{DataType, Field, Schema};
+use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
-use sqlx::postgres::{PgArguments, PgConnectOptions, PgPool, PgPoolOptions, PgRow};
-use sqlx::{AssertSqlSafe, Column, Row, TypeInfo, ValueRef};
+use sqlx::postgres::{PgArguments, PgColumn, PgConnectOptions, PgPool, PgPoolOptions, PgRow};
+use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+use sqlx::types::{BigDecimal, JsonValue, Uuid};
+use sqlx::{AssertSqlSafe, Column, Executor, Row, SqlSafeStr, Statement, TypeInfo, ValueRef};
 use tokio::runtime::Runtime;
 
 use crate::codec::rows_to_arrow;
@@ -137,11 +140,19 @@ impl Database for PostgresDatabase {
     fn list_relations(&self, schema: &str) -> Result<Vec<RelationInfo>> {
         self.block_on(async {
             let rows = sqlx::query(
-                "SELECT table_name, table_type
-                 FROM information_schema.tables
-                 WHERE table_schema = $1
-                   AND table_type IN ('BASE TABLE', 'VIEW')
-                 ORDER BY table_name",
+                "SELECT
+                    t.table_name,
+                    t.table_type,
+                    c.reltuples::bigint AS row_count
+                 FROM information_schema.tables t
+                 LEFT JOIN pg_namespace n
+                   ON n.nspname = t.table_schema
+                 LEFT JOIN pg_class c
+                   ON c.relnamespace = n.oid
+                  AND c.relname = t.table_name
+                 WHERE t.table_schema = $1
+                   AND t.table_type IN ('BASE TABLE', 'VIEW')
+                 ORDER BY t.table_name",
             )
             .bind(schema)
             .fetch_all(&self.pool)
@@ -150,10 +161,16 @@ impl Database for PostgresDatabase {
             for row in rows {
                 let name: String = row.try_get("table_name")?;
                 let kind = relation_kind(row.try_get::<String, _>("table_type")?.as_str())?;
+                let row_count = if kind == RelationKind::Table {
+                    let estimate: Option<i64> = row.try_get("row_count")?;
+                    estimate.and_then(|value| u64::try_from(value).ok())
+                } else {
+                    None
+                };
                 relations.push(RelationInfo {
-                    row_count: relation_row_count(&self.pool, schema, &name, &kind).await?,
                     name,
                     kind,
+                    row_count,
                     size_bytes: None,
                     comment: None,
                 });
@@ -305,7 +322,17 @@ impl Database for PostgresDatabase {
                 query = bind_value(query, param);
             }
             let rows = query.fetch_all(&self.pool).await?;
-            postgres_rows_to_arrow(rows)
+            let columns = match rows.first() {
+                Some(row) => postgres_column_metadata(row.columns()),
+                None => {
+                    let mut conn = self.pool.acquire().await?;
+                    let statement = (&mut *conn)
+                        .prepare(AssertSqlSafe(sql.to_string()).into_sql_str())
+                        .await?;
+                    postgres_column_metadata(statement.columns())
+                }
+            };
+            postgres_rows_to_arrow(columns, rows)
         })
     }
 
@@ -529,27 +556,36 @@ fn downcast_array<T: 'static>(array: &dyn Array) -> Result<&T> {
     })
 }
 
-fn postgres_rows_to_arrow(rows: Vec<PgRow>) -> Result<RecordBatchStream> {
-    let Some(first) = rows.first() else {
-        return rows_to_arrow(Vec::new());
-    };
-    let names = first
-        .columns()
+fn postgres_column_metadata(columns: &[PgColumn]) -> Vec<(String, String)> {
+    columns
         .iter()
-        .map(|column| column.name().to_string())
+        .map(|column| {
+            (
+                column.name().to_string(),
+                column.type_info().name().to_string(),
+            )
+        })
+        .collect()
+}
+
+fn postgres_rows_to_arrow(
+    column_metadata: Vec<(String, String)>,
+    rows: Vec<PgRow>,
+) -> Result<RecordBatchStream> {
+    let names = column_metadata
+        .iter()
+        .map(|(name, _)| name.clone())
         .collect::<Vec<_>>();
-    let mut type_names = vec![Vec::new(); names.len()];
+    let mut type_names = column_metadata
+        .into_iter()
+        .map(|(_, type_name)| vec![type_name])
+        .collect::<Vec<_>>();
     for row in &rows {
         for (index, names) in type_names.iter_mut().enumerate() {
             let raw = row.try_get_raw(index)?;
             if !raw.is_null() {
                 names.push(raw.type_info().name().to_string());
             }
-        }
-    }
-    for (index, names) in type_names.iter_mut().enumerate() {
-        if names.is_empty() {
-            names.push(first.columns()[index].type_info().name().to_string());
         }
     }
     let mut columns = type_names
@@ -585,7 +621,19 @@ enum ColumnValues {
     Float64(Vec<Option<f64>>),
     Binary(Vec<Option<Vec<u8>>>),
     Utf8(Vec<Option<String>>),
+    Date32(Vec<Option<i32>>),
+    Time64(Vec<Option<i64>>),
+    Timestamp(Vec<Option<i64>>),
+    // Rich scalar types rendered to their lossless text form.
+    Text(Vec<Option<String>>, TextKind),
     Unsupported(String, Vec<Option<String>>),
+}
+
+#[derive(Clone, Copy)]
+enum TextKind {
+    Decimal,
+    Uuid,
+    Json,
 }
 
 impl ColumnValues {
@@ -603,6 +651,12 @@ impl ColumnValues {
             "FLOAT8" => Self::Float64(Vec::new()),
             "BYTEA" => Self::Binary(Vec::new()),
             "TEXT" | "VARCHAR" | "BPCHAR" | "CHAR" | "NAME" => Self::Utf8(Vec::new()),
+            "DATE" => Self::Date32(Vec::new()),
+            "TIME" => Self::Time64(Vec::new()),
+            "TIMESTAMP" | "TIMESTAMPTZ" => Self::Timestamp(Vec::new()),
+            "NUMERIC" => Self::Text(Vec::new(), TextKind::Decimal),
+            "UUID" => Self::Text(Vec::new(), TextKind::Uuid),
+            "JSON" | "JSONB" => Self::Text(Vec::new(), TextKind::Json),
             other => Self::Unsupported(other.to_string(), Vec::new()),
         }
     }
@@ -627,6 +681,14 @@ impl ColumnValues {
             ColumnValues::Float64(values) => values.push(Some(row.try_get(index)?)),
             ColumnValues::Binary(values) => values.push(Some(row.try_get(index)?)),
             ColumnValues::Utf8(values) => values.push(Some(row.try_get(index)?)),
+            ColumnValues::Date32(values) => values.push(Some(naive_date_to_days(
+                row.try_get::<NaiveDate, _>(index)?,
+            ))),
+            ColumnValues::Time64(values) => values.push(Some(naive_time_to_micros(
+                row.try_get::<NaiveTime, _>(index)?,
+            ))),
+            ColumnValues::Timestamp(values) => values.push(Some(timestamp_micros(row, index)?)),
+            ColumnValues::Text(values, kind) => values.push(Some(decode_text(row, index, *kind)?)),
             ColumnValues::Unsupported(name, _) => {
                 return Err(DbError::NotSupported(format!(
                     "Postgres query output type is not yet mapped to Arrow: {name}"
@@ -645,6 +707,9 @@ impl ColumnValues {
             ColumnValues::Float32(values) | ColumnValues::Float64(values) => values.push(None),
             ColumnValues::Binary(values) => values.push(None),
             ColumnValues::Utf8(values) | ColumnValues::Unsupported(_, values) => values.push(None),
+            ColumnValues::Date32(values) => values.push(None),
+            ColumnValues::Time64(values) | ColumnValues::Timestamp(values) => values.push(None),
+            ColumnValues::Text(values, _) => values.push(None),
         }
     }
 
@@ -656,7 +721,12 @@ impl ColumnValues {
             }
             ColumnValues::Float32(_) | ColumnValues::Float64(_) => DataType::Float64,
             ColumnValues::Binary(_) => DataType::Binary,
-            ColumnValues::Utf8(_) | ColumnValues::Unsupported(_, _) => DataType::Utf8,
+            ColumnValues::Utf8(_) | ColumnValues::Unsupported(_, _) | ColumnValues::Text(_, _) => {
+                DataType::Utf8
+            }
+            ColumnValues::Date32(_) => DataType::Date32,
+            ColumnValues::Time64(_) => DataType::Time64(TimeUnit::Microsecond),
+            ColumnValues::Timestamp(_) => DataType::Timestamp(TimeUnit::Microsecond, None),
         }
     }
 
@@ -676,11 +746,47 @@ impl ColumnValues {
                     .collect::<Vec<_>>();
                 Arc::new(BinaryArray::from(refs)) as ArrayRef
             }
-            ColumnValues::Utf8(values) | ColumnValues::Unsupported(_, values) => {
-                Arc::new(StringArray::from(values)) as ArrayRef
+            ColumnValues::Utf8(values)
+            | ColumnValues::Unsupported(_, values)
+            | ColumnValues::Text(values, _) => Arc::new(StringArray::from(values)) as ArrayRef,
+            ColumnValues::Date32(values) => Arc::new(Date32Array::from(values)) as ArrayRef,
+            ColumnValues::Time64(values) => {
+                Arc::new(Time64MicrosecondArray::from(values)) as ArrayRef
+            }
+            ColumnValues::Timestamp(values) => {
+                Arc::new(TimestampMicrosecondArray::from(values)) as ArrayRef
             }
         }
     }
+}
+
+fn naive_date_to_days(date: NaiveDate) -> i32 {
+    date.signed_duration_since(NaiveDate::from_ymd_opt(1970, 1, 1).expect("valid epoch"))
+        .num_days() as i32
+}
+
+fn naive_time_to_micros(time: NaiveTime) -> i64 {
+    let midnight = NaiveTime::from_hms_opt(0, 0, 0).expect("valid midnight");
+    (time - midnight).num_microseconds().unwrap_or(0)
+}
+
+fn timestamp_micros(row: &PgRow, index: usize) -> Result<i64> {
+    // `timestamptz` decodes to `DateTime<Utc>`; plain `timestamp` to `NaiveDateTime`.
+    match row.try_get::<DateTime<Utc>, _>(index) {
+        Ok(value) => Ok(value.timestamp_micros()),
+        Err(_) => Ok(row
+            .try_get::<NaiveDateTime, _>(index)?
+            .and_utc()
+            .timestamp_micros()),
+    }
+}
+
+fn decode_text(row: &PgRow, index: usize, kind: TextKind) -> Result<String> {
+    Ok(match kind {
+        TextKind::Decimal => row.try_get::<BigDecimal, _>(index)?.to_string(),
+        TextKind::Uuid => row.try_get::<Uuid, _>(index)?.to_string(),
+        TextKind::Json => row.try_get::<JsonValue, _>(index)?.to_string(),
+    })
 }
 
 fn relation_kind(table_type: &str) -> Result<RelationKind> {
@@ -749,6 +855,84 @@ mod tests {
     }
 
     #[test]
+    fn builds_empty_arrow_schema_from_postgres_metadata() {
+        let mut reader = postgres_rows_to_arrow(
+            vec![
+                ("id".to_string(), "INT8".to_string()),
+                ("name".to_string(), "TEXT".to_string()),
+            ],
+            Vec::new(),
+        )
+        .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+
+        assert_eq!(batch.num_rows(), 0);
+        assert_eq!(batch.schema().field(0).name(), "id");
+        assert_eq!(batch.schema().field(0).data_type(), &DataType::Int64);
+        assert_eq!(batch.schema().field(1).name(), "name");
+        assert_eq!(batch.schema().field(1).data_type(), &DataType::Utf8);
+    }
+
+    #[test]
+    fn postgres_rich_types_map_to_arrow() {
+        let Ok(url) = std::env::var("FSSPEC_DB_POSTGRES_URL") else {
+            return;
+        };
+        let db = PostgresDatabase::connect(&url).unwrap();
+        db.runtime
+            .block_on(async {
+                sqlx::query("DROP TABLE IF EXISTS public.fsspec_db_rich")
+                    .execute(&db.pool)
+                    .await?;
+                sqlx::query(
+                    "CREATE TABLE public.fsspec_db_rich (
+                        amount NUMERIC(10, 2),
+                        created DATE,
+                        ts TIMESTAMP,
+                        tsz TIMESTAMPTZ,
+                        uid UUID,
+                        doc JSONB
+                    )",
+                )
+                .execute(&db.pool)
+                .await?;
+                sqlx::query(
+                    "INSERT INTO public.fsspec_db_rich VALUES
+                     (12.34, '2020-01-02', '2020-01-02 03:04:05',
+                      '2020-01-02 03:04:05+00',
+                      '00000000-0000-0000-0000-000000000001', '{\"a\": 1}'),
+                     (NULL, NULL, NULL, NULL, NULL, NULL)",
+                )
+                .execute(&db.pool)
+                .await?;
+                Ok::<_, sqlx::Error>(())
+            })
+            .unwrap();
+
+        let mut reader = db
+            .query(
+                "SELECT amount, created, ts, tsz, uid, doc FROM public.fsspec_db_rich ORDER BY created NULLS LAST",
+                &[],
+            )
+            .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+        let schema = batch.schema();
+        assert_eq!(schema.field(0).data_type(), &DataType::Utf8); // numeric -> text
+        assert_eq!(schema.field(1).data_type(), &DataType::Date32);
+        assert_eq!(
+            schema.field(2).data_type(),
+            &DataType::Timestamp(TimeUnit::Microsecond, None)
+        );
+        assert_eq!(
+            schema.field(3).data_type(),
+            &DataType::Timestamp(TimeUnit::Microsecond, None)
+        );
+        assert_eq!(schema.field(4).data_type(), &DataType::Utf8); // uuid -> text
+        assert_eq!(schema.field(5).data_type(), &DataType::Utf8); // jsonb -> text
+        assert_eq!(batch.num_rows(), 2);
+    }
+
+    #[test]
     fn postgres_integration_round_trips_when_configured() {
         let Ok(url) = std::env::var("FSSPEC_DB_POSTGRES_URL") else {
             return;
@@ -812,6 +996,17 @@ mod tests {
         assert_eq!(batch.schema().field(2).data_type(), &DataType::Float64);
         assert_eq!(batch.schema().field(3).data_type(), &DataType::Boolean);
         assert_eq!(batch.schema().field(4).data_type(), &DataType::Binary);
+
+        let mut reader = db
+            .query(
+                "SELECT id, name FROM public.fsspec_db_users WHERE id < 0",
+                &[],
+            )
+            .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+        assert_eq!(batch.num_rows(), 0);
+        assert_eq!(batch.schema().field(0).name(), "id");
+        assert_eq!(batch.schema().field(1).name(), "name");
 
         db.runtime
             .block_on(async {

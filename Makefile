@@ -117,6 +117,50 @@ coverage: coverage-py coverage-rs  ## run all tests and collect test coverage
 # alias
 tests: test
 
+###############
+# INTEGRATION #
+###############
+# Live Postgres/MySQL integration tests, gated on FSSPEC_DB_*_URL env vars.
+# Uses podman-compose by default; override with `make COMPOSE="docker compose" ...`.
+COMPOSE ?= podman-compose
+COMPOSE_FILE ?= ci/docker-compose.yml
+FSSPEC_DB_POSTGRES_URL ?= postgresql://fsspec:fsspec@127.0.0.1:55432/fsspec
+FSSPEC_DB_MYSQL_URL ?= mysql://fsspec:fsspec@127.0.0.1:53306/fsspec
+# NOTE: do not `export` these globally. They are passed only to the integration
+# recipes below, so a plain `make test`/`make coverage` does not put them in the
+# environment and trigger the env-gated Postgres/MySQL integration tests (which
+# would fail without a live database).
+
+.PHONY: dbs-up dbs-wait dbs-down dbs-logs test-integration test-integration-rs test-integration-py
+
+dbs-up:  ## start the Postgres/MySQL fixtures (podman-compose)
+	$(COMPOSE) -f $(COMPOSE_FILE) up -d
+
+dbs-wait:  ## block until the database fixtures accept connections
+	@echo "waiting for postgres + mysql to become ready..."
+	@for i in $$(seq 1 60); do \
+		if $(COMPOSE) -f $(COMPOSE_FILE) exec -T postgres pg_isready -U fsspec -d fsspec >/dev/null 2>&1 \
+			&& $(COMPOSE) -f $(COMPOSE_FILE) exec -T mysql mysql -ufsspec -pfsspec fsspec -e 'SELECT 1' >/dev/null 2>&1; then \
+			echo "databases ready"; exit 0; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "timed out waiting for databases"; $(COMPOSE) -f $(COMPOSE_FILE) ps; exit 1
+
+dbs-down:  ## stop the database fixtures and remove their volumes
+	$(COMPOSE) -f $(COMPOSE_FILE) down -v
+
+dbs-logs:  ## tail the database fixture logs
+	$(COMPOSE) -f $(COMPOSE_FILE) logs -f
+
+test-integration-rs:  ## run the env-gated rust integration tests
+	FSSPEC_DB_POSTGRES_URL="$(FSSPEC_DB_POSTGRES_URL)" FSSPEC_DB_MYSQL_URL="$(FSSPEC_DB_MYSQL_URL)" $(MAKE) -C rust test
+
+test-integration-py:  ## run the env-gated python integration tests
+	FSSPEC_DB_POSTGRES_URL="$(FSSPEC_DB_POSTGRES_URL)" FSSPEC_DB_MYSQL_URL="$(FSSPEC_DB_MYSQL_URL)" python -m pytest -v fsspec_db/tests/test_integration.py
+
+test-integration: dbs-up dbs-wait test-integration-rs test-integration-py  ## bring up dbs and run all integration tests
+
 ###########
 # VERSION #
 ###########
