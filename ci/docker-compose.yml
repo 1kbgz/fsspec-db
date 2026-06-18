@@ -1,0 +1,39 @@
+# Local database fixtures for fsspec-db integration tests.
+#
+# Works with both `podman-compose` (default) and `docker compose`. Bring the
+# stack up with `make dbs-up` and run the env-gated integration tests with
+# `make test-integration`. Non-default host ports are used to avoid clashing
+# with any locally-installed Postgres/MySQL.
+#
+#   FSSPEC_DB_POSTGRES_URL=postgresql://fsspec:fsspec@127.0.0.1:55432/fsspec
+#   FSSPEC_DB_MYSQL_URL=mysql://fsspec:fsspec@127.0.0.1:53306/fsspec
+
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_USER: fsspec
+      POSTGRES_PASSWORD: fsspec
+      POSTGRES_DB: fsspec
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fsspec -d fsspec"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  mysql:
+    image: docker.io/library/mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: fsspec
+      MYSQL_DATABASE: fsspec
+      MYSQL_USER: fsspec
+      MYSQL_PASSWORD: fsspec
+    ports:
+      - "127.0.0.1:53306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -ufsspec -pfsspec fsspec -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 3s
+      timeout: 5s
+      retries: 40

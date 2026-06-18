@@ -96,6 +96,25 @@ impl From<sqlx::Error> for DbError {
         match err {
             sqlx::Error::RowNotFound => DbError::NotFound("row not found".to_string()),
             sqlx::Error::Io(err) => DbError::from(err),
+            sqlx::Error::Database(err) => match err.kind() {
+                sqlx::error::ErrorKind::UniqueViolation => {
+                    DbError::AlreadyExists(err.message().to_string())
+                }
+                sqlx::error::ErrorKind::ForeignKeyViolation
+                | sqlx::error::ErrorKind::NotNullViolation
+                | sqlx::error::ErrorKind::CheckViolation
+                | sqlx::error::ErrorKind::ExclusionViolation => {
+                    DbError::InvalidArgument(err.message().to_string())
+                }
+                _ => {
+                    let code = err.code().map(|code| code.into_owned()).unwrap_or_default();
+                    if matches!(code.as_str(), "28000" | "28P01" | "1044" | "1045") {
+                        DbError::PermissionDenied(err.message().to_string())
+                    } else {
+                        DbError::Other(err.message().to_string())
+                    }
+                }
+            },
             err => DbError::Other(err.to_string()),
         }
     }

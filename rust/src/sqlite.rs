@@ -9,8 +9,8 @@ use arrow::array::{
 };
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
-use sqlx::{AssertSqlSafe, Column, Row, TypeInfo, ValueRef};
+use sqlx::sqlite::{SqliteColumn, SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
+use sqlx::{AssertSqlSafe, Column, Executor, Row, SqlSafeStr, Statement, TypeInfo, ValueRef};
 use tokio::runtime::Runtime;
 
 use crate::codec::rows_to_arrow;
@@ -69,9 +69,9 @@ impl SqliteDatabase {
                 }
             };
             relations.push(RelationInfo {
-                row_count: relation_row_count(&self.pool, schema, &name, &kind).await?,
                 name,
                 kind,
+                row_count: None,
                 size_bytes: None,
                 comment: None,
             });
@@ -288,7 +288,17 @@ impl Database for SqliteDatabase {
                 query = bind_value(query, param);
             }
             let rows = query.fetch_all(&self.pool).await?;
-            sqlite_rows_to_arrow(rows)
+            let columns = match rows.first() {
+                Some(row) => sqlite_column_metadata(row.columns()),
+                None => {
+                    let mut conn = self.pool.acquire().await?;
+                    let statement = (&mut *conn)
+                        .prepare(AssertSqlSafe(sql.to_string()).into_sql_str())
+                        .await?;
+                    sqlite_column_metadata(statement.columns())
+                }
+            };
+            sqlite_rows_to_arrow(columns, rows)
         })
     }
 
@@ -574,27 +584,36 @@ fn downcast_array<T: 'static>(array: &dyn Array) -> Result<&T> {
     })
 }
 
-fn sqlite_rows_to_arrow(rows: Vec<SqliteRow>) -> Result<RecordBatchStream> {
-    let Some(first) = rows.first() else {
-        return rows_to_arrow(Vec::new());
-    };
-    let names = first
-        .columns()
+fn sqlite_column_metadata(columns: &[SqliteColumn]) -> Vec<(String, String)> {
+    columns
         .iter()
-        .map(|column| column.name().to_string())
+        .map(|column| {
+            (
+                column.name().to_string(),
+                column.type_info().name().to_string(),
+            )
+        })
+        .collect()
+}
+
+fn sqlite_rows_to_arrow(
+    column_metadata: Vec<(String, String)>,
+    rows: Vec<SqliteRow>,
+) -> Result<RecordBatchStream> {
+    let names = column_metadata
+        .iter()
+        .map(|(name, _)| name.clone())
         .collect::<Vec<_>>();
-    let mut type_names = vec![Vec::new(); names.len()];
+    let mut type_names = column_metadata
+        .into_iter()
+        .map(|(_, type_name)| vec![type_name])
+        .collect::<Vec<_>>();
     for row in &rows {
         for (index, names) in type_names.iter_mut().enumerate() {
             let raw = row.try_get_raw(index)?;
             if !raw.is_null() {
                 names.push(raw.type_info().name().to_string());
             }
-        }
-    }
-    for (index, names) in type_names.iter_mut().enumerate() {
-        if names.is_empty() {
-            names.push(first.columns()[index].type_info().name().to_string());
         }
     }
     let mut columns = type_names
@@ -637,9 +656,14 @@ impl ColumnValues {
             .collect::<Vec<_>>();
         if sqlite_types
             .iter()
-            .any(|sqlite_type| sqlite_type.contains("bool"))
+            .any(|sqlite_type| sqlite_type.contains("text") || sqlite_type.contains("char"))
         {
-            Self::Bool(Vec::new())
+            Self::Utf8(Vec::new())
+        } else if sqlite_types
+            .iter()
+            .any(|sqlite_type| sqlite_type.contains("blob"))
+        {
+            Self::Binary(Vec::new())
         } else if sqlite_types.iter().any(|sqlite_type| {
             sqlite_type.contains("real")
                 || sqlite_type.contains("floa")
@@ -648,30 +672,42 @@ impl ColumnValues {
             Self::Float64(Vec::new())
         } else if sqlite_types
             .iter()
+            .any(|sqlite_type| sqlite_type.contains("bool"))
+        {
+            Self::Bool(Vec::new())
+        } else if sqlite_types
+            .iter()
             .any(|sqlite_type| sqlite_type.contains("int"))
         {
             Self::Int64(Vec::new())
-        } else if sqlite_types
-            .iter()
-            .any(|sqlite_type| sqlite_type.contains("blob"))
-        {
-            Self::Binary(Vec::new())
         } else {
             Self::Utf8(Vec::new())
         }
     }
 
     fn push(&mut self, row: &SqliteRow, index: usize) -> Result<()> {
-        if row.try_get_raw(index)?.is_null() {
+        let raw = row.try_get_raw(index)?;
+        if raw.is_null() {
             self.push_null();
             return Ok(());
         }
+        let type_name = raw.type_info().name().to_ascii_lowercase();
         match self {
-            ColumnValues::Bool(values) => values.push(Some(row.try_get(index)?)),
-            ColumnValues::Int64(values) => values.push(Some(row.try_get(index)?)),
-            ColumnValues::Float64(values) => values.push(Some(row.try_get(index)?)),
-            ColumnValues::Binary(values) => values.push(Some(row.try_get(index)?)),
-            ColumnValues::Utf8(values) => values.push(Some(row.try_get(index)?)),
+            ColumnValues::Bool(values) => {
+                values.push(Some(decode_sqlite_bool(row, index, &type_name)?))
+            }
+            ColumnValues::Int64(values) => {
+                values.push(Some(decode_sqlite_i64(row, index, &type_name)?))
+            }
+            ColumnValues::Float64(values) => {
+                values.push(Some(decode_sqlite_f64(row, index, &type_name)?))
+            }
+            ColumnValues::Binary(values) => {
+                values.push(Some(decode_sqlite_binary(row, index, &type_name)?))
+            }
+            ColumnValues::Utf8(values) => {
+                values.push(Some(decode_sqlite_utf8(row, index, &type_name)?))
+            }
         }
         Ok(())
     }
@@ -710,6 +746,79 @@ impl ColumnValues {
             }
             ColumnValues::Utf8(values) => Arc::new(StringArray::from(values)) as ArrayRef,
         }
+    }
+}
+
+fn decode_sqlite_bool(row: &SqliteRow, index: usize, type_name: &str) -> Result<bool> {
+    if type_name.contains("bool") {
+        row.try_get(index).map_err(DbError::from)
+    } else if type_name.contains("int") {
+        let value: i64 = row.try_get(index)?;
+        Ok(value != 0)
+    } else {
+        Err(DbError::NotSupported(format!(
+            "SQLite value type cannot be decoded as bool: {type_name}"
+        )))
+    }
+}
+
+fn decode_sqlite_i64(row: &SqliteRow, index: usize, type_name: &str) -> Result<i64> {
+    if type_name.contains("bool") {
+        let value: bool = row.try_get(index)?;
+        Ok(i64::from(value))
+    } else if type_name.contains("int") {
+        row.try_get(index).map_err(DbError::from)
+    } else {
+        Err(DbError::NotSupported(format!(
+            "SQLite value type cannot be decoded as integer without loss: {type_name}"
+        )))
+    }
+}
+
+fn decode_sqlite_f64(row: &SqliteRow, index: usize, type_name: &str) -> Result<f64> {
+    if type_name.contains("real") || type_name.contains("floa") || type_name.contains("doub") {
+        row.try_get(index).map_err(DbError::from)
+    } else if type_name.contains("bool") {
+        let value: bool = row.try_get(index)?;
+        Ok(if value { 1.0 } else { 0.0 })
+    } else if type_name.contains("int") {
+        let value: i64 = row.try_get(index)?;
+        Ok(value as f64)
+    } else {
+        Err(DbError::NotSupported(format!(
+            "SQLite value type cannot be decoded as float: {type_name}"
+        )))
+    }
+}
+
+fn decode_sqlite_binary(row: &SqliteRow, index: usize, type_name: &str) -> Result<Vec<u8>> {
+    if type_name.contains("blob") {
+        row.try_get(index).map_err(DbError::from)
+    } else {
+        Ok(decode_sqlite_utf8(row, index, type_name)?.into_bytes())
+    }
+}
+
+fn decode_sqlite_utf8(row: &SqliteRow, index: usize, type_name: &str) -> Result<String> {
+    if type_name.contains("text") || type_name.contains("char") {
+        row.try_get(index).map_err(DbError::from)
+    } else if type_name.contains("blob") {
+        let value: Vec<u8> = row.try_get(index)?;
+        Ok(String::from_utf8_lossy(&value).into_owned())
+    } else if type_name.contains("real") || type_name.contains("floa") || type_name.contains("doub")
+    {
+        let value: f64 = row.try_get(index)?;
+        Ok(value.to_string())
+    } else if type_name.contains("bool") {
+        let value: bool = row.try_get(index)?;
+        Ok(value.to_string())
+    } else if type_name.contains("int") {
+        let value: i64 = row.try_get(index)?;
+        Ok(value.to_string())
+    } else {
+        Err(DbError::NotSupported(format!(
+            "SQLite value type cannot be decoded as text: {type_name}"
+        )))
     }
 }
 
@@ -901,5 +1010,77 @@ mod tests {
 
         assert_eq!(batch.schema().field(0).data_type(), &DataType::Int64);
         assert!(batch.column(0).is_null(0));
+    }
+
+    #[test]
+    fn preserves_schema_for_empty_query_results() {
+        let db = seeded_db();
+
+        let mut reader = db
+            .query("SELECT id, name, score FROM users WHERE 1 = 0", &[])
+            .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+
+        assert_eq!(batch.num_rows(), 0);
+        assert_eq!(batch.schema().field(0).name(), "id");
+        assert_eq!(batch.schema().field(0).data_type(), &DataType::Int64);
+        assert_eq!(batch.schema().field(1).name(), "name");
+        assert_eq!(batch.schema().field(1).data_type(), &DataType::Utf8);
+        assert_eq!(batch.schema().field(2).name(), "score");
+        assert_eq!(batch.schema().field(2).data_type(), &DataType::Float64);
+    }
+
+    #[test]
+    fn widens_mixed_sqlite_numeric_values() {
+        let db = seeded_db();
+
+        let mut reader = db
+            .query("SELECT 1 AS value UNION ALL SELECT 1.5 AS value", &[])
+            .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+
+        assert_eq!(batch.schema().field(0).data_type(), &DataType::Float64);
+        let values = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<Float64Array>()
+            .unwrap();
+        assert_eq!(values.value(0), 1.0);
+        assert_eq!(values.value(1), 1.5);
+    }
+
+    #[test]
+    fn keeps_mixed_sqlite_text_values_as_utf8() {
+        let db = seeded_db();
+
+        let mut reader = db
+            .query("SELECT 1 AS value UNION ALL SELECT 'two' AS value", &[])
+            .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+
+        assert_eq!(batch.schema().field(0).data_type(), &DataType::Utf8);
+        let values = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .unwrap();
+        assert_eq!(values.value(0), "1");
+        assert_eq!(values.value(1), "two");
+    }
+
+    #[test]
+    fn maps_unique_constraint_errors_to_already_exists() {
+        let db = seeded_db();
+
+        let err = db
+            .runtime
+            .block_on(async {
+                sqlx::query("INSERT INTO users (id, name) VALUES (1, 'duplicate')")
+                    .execute(&db.pool)
+                    .await
+            })
+            .unwrap_err();
+
+        assert!(matches!(DbError::from(err), DbError::AlreadyExists(_)));
     }
 }

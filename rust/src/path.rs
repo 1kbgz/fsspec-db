@@ -250,11 +250,49 @@ fn split_query(path: &str) -> (&str, Vec<(String, String)>) {
         .split('&')
         .filter(|part| !part.is_empty())
         .map(|part| match part.split_once('=') {
-            Some((key, value)) => (key.to_string(), value.to_string()),
-            None => (part.to_string(), String::new()),
+            Some((key, value)) => (percent_decode(key), percent_decode(value)),
+            None => (percent_decode(part), String::new()),
         })
         .collect();
     (path_part, query)
+}
+
+/// Decode an `application/x-www-form-urlencoded` query component, matching the
+/// behaviour of Python's `urllib.parse.parse_qsl`: `+` becomes a space and
+/// `%XX` escapes are decoded as bytes (UTF-8, lossy on invalid sequences). This
+/// is required because the native backends receive the raw path (including the
+/// query string) and parse it here rather than in Python.
+fn percent_decode(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b'%' if i + 2 < bytes.len() => {
+                let hi = (bytes[i + 1] as char).to_digit(16);
+                let lo = (bytes[i + 2] as char).to_digit(16);
+                match (hi, lo) {
+                    (Some(hi), Some(lo)) => {
+                        out.push((hi * 16 + lo) as u8);
+                        i += 3;
+                    }
+                    _ => {
+                        out.push(b'%');
+                        i += 1;
+                    }
+                }
+            }
+            byte => {
+                out.push(byte);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn normalize_path(path: &str) -> String {
@@ -304,6 +342,20 @@ mod tests {
             path.to_path(),
             "/main/users.parquet?limit=10&columns=id,name"
         );
+    }
+
+    #[test]
+    fn decodes_percent_encoded_query() {
+        let path =
+            DbPath::parse("/main/users.arrow?where=id%20%3E%200%20AND%20name%3D%27a%27").unwrap();
+        assert_eq!(
+            path.query,
+            vec![("where".to_string(), "id > 0 AND name='a'".to_string())]
+        );
+
+        // `+` decodes to a space, matching `urllib.parse.parse_qsl`.
+        let plus = DbPath::parse("/main/users.arrow?where=a+b").unwrap();
+        assert_eq!(plus.query, vec![("where".to_string(), "a b".to_string())]);
     }
 
     #[test]

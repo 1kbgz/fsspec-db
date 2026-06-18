@@ -1,0 +1,59 @@
+name: Integration
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - LICENSE
+      - README.md
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+
+    env:
+      # Same contract as the ci/docker-compose.yml fixtures.
+      COMPOSE: docker compose
+      FSSPEC_DB_POSTGRES_URL: postgresql://fsspec:fsspec@127.0.0.1:55432/fsspec
+      FSSPEC_DB_MYSQL_URL: mysql://fsspec:fsspec@127.0.0.1:53306/fsspec
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions-ext/python/setup@main
+        with:
+          version: "3.11"
+
+      - uses: actions-ext/rust/setup@main
+
+      - name: Start databases
+        run: make dbs-up dbs-wait
+
+      - name: Install dependencies
+        run: |
+          make develop
+          uv pip install -e .[integration]
+
+      - name: Build extension
+        run: make build
+
+      - name: Run integration tests
+        run: make test-integration-rs test-integration-py
+
+      - name: Stop databases
+        if: always()
+        run: make dbs-down

@@ -154,6 +154,19 @@ def test_python_database_error_crosses_bridge():
         raise AssertionError("Python FileNotFoundError should round-trip through Rust")
 
 
+def test_python_database_rejects_unknown_dialect():
+    class BadDialectDatabase(MockDatabase):
+        def dialect(self):
+            return "surprise"
+
+    try:
+        AbstractDatabaseFileSystem(BadDialectDatabase())
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("unknown Python database dialect should fail fast")
+
+
 def test_python_filesystem_write_uses_bridge():
     db = MockDatabase()
     fs = AbstractDatabaseFileSystem(db)
@@ -174,15 +187,33 @@ def test_python_filesystem_rejects_exclusive_create_at_open():
         raise AssertionError("exclusive create should fail at open time")
 
 
-def test_python_filesystem_rejects_unparsed_where_query_param():
+def test_python_filesystem_applies_where_query_param():
+    db = MockDatabase()
+    fs = AbstractDatabaseFileSystem(db)
+
+    fs.cat_file("/main/users.arrow?where=id > 0")
+
+    assert db.queries == ['SELECT * FROM "main"."users" WHERE id > 0']
+
+
+def test_python_filesystem_decodes_where_query_param():
+    db = MockDatabase()
+    fs = AbstractDatabaseFileSystem(db)
+
+    fs.cat_file("/main/users.arrow?where=name%20%3D%20%27ada%27")
+
+    assert db.queries == ['SELECT * FROM "main"."users" WHERE name = \'ada\'']
+
+
+def test_python_filesystem_rejects_injection_where_query_param():
     fs = AbstractDatabaseFileSystem(MockDatabase())
 
     try:
-        fs.cat_file("/main/users.arrow?where=id=1")
-    except OSError:
+        fs.cat_file("/main/users.arrow?where=1); DROP TABLE users;--")
+    except (ValueError, OSError):
         pass
     else:
-        raise AssertionError("where query parameter should be rejected until Phase 3")
+        raise AssertionError("injection-style where clause must be rejected")
 
 
 def test_python_filesystem_rejects_non_directory_ls():

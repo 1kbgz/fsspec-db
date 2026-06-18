@@ -156,6 +156,7 @@ where
                     facet_dir(schema, relation, DbFacet::Constraints),
                 ];
                 if info.kind == RelationKind::View {
+                    entries.push(facet_dir(schema, relation, DbFacet::DependsOn));
                     entries.push(view_definition_file(schema, relation, 0));
                 }
                 Ok(entries)
@@ -249,7 +250,7 @@ where
                         .insert("size_known".to_string(), "true".to_string());
                     return Ok(Box::new(DbFile::readable(data, info)));
                 }
-                let options = select_options_from_query(&parsed.query)?;
+                let options = select_options_from_query(&self.db.dialect(), &parsed.query)?;
                 let sql = select_sql(&self.db.dialect(), schema, relation, &options)?;
                 let reader = self.db.query(&sql, &[] as &[DbValue])?;
                 let data = format_reader(reader, &format)?;
@@ -306,7 +307,27 @@ where
                 .into_iter()
                 .map(|constraint| constraint_info(schema, relation, constraint))
                 .collect(),
-            DbFacet::DependsOn => Ok(Vec::new()),
+            DbFacet::DependsOn => {
+                let info = self.db.relation_info(schema, relation)?;
+                if info.kind != RelationKind::View {
+                    return Ok(Vec::new());
+                }
+                let definition = self.db.view_definition(schema, relation)?;
+                Ok(
+                    crate::sql::view_dependencies(&self.db.dialect(), &definition)
+                        .iter()
+                        .filter(|dependency| {
+                            // Exclude a self-reference to the view itself.
+                            let table = dependency
+                                .rsplit_once('.')
+                                .map(|(_, table)| table)
+                                .unwrap_or(dependency);
+                            table != relation
+                        })
+                        .map(|dependency| depends_on_entry(schema, relation, dependency))
+                        .collect(),
+                )
+            }
         }
     }
 
@@ -478,7 +499,28 @@ fn view_definition_file(schema: &str, relation: &str, size: u64) -> FileInfo {
     info
 }
 
-fn select_options_from_query(query: &[(String, String)]) -> Result<SelectOptions> {
+fn depends_on_entry(schema: &str, relation: &str, dependency: &str) -> FileInfo {
+    let (target_schema, target_relation) = match dependency.rsplit_once('.') {
+        Some((dep_schema, dep_relation)) => (dep_schema.to_string(), dep_relation.to_string()),
+        None => (schema.to_string(), dependency.to_string()),
+    };
+    let mut info = FileInfo::file(
+        DbPath::facet_item_path(schema, relation, DbFacet::DependsOn, &target_relation),
+        0,
+    );
+    info.extra
+        .insert("kind".to_string(), "depends_on".to_string());
+    info.extra.insert(
+        "target".to_string(),
+        DbPath::relation_path(&target_schema, &target_relation),
+    );
+    info
+}
+
+fn select_options_from_query(
+    dialect: &Dialect,
+    query: &[(String, String)],
+) -> Result<SelectOptions> {
     let mut options = SelectOptions::default();
     for (key, value) in query {
         match key.as_str() {
@@ -498,9 +540,7 @@ fn select_options_from_query(query: &[(String, String)]) -> Result<SelectOptions
                 options.limit = Some(limit);
             }
             "where" => {
-                return Err(DbError::NotSupported(
-                    "where query parameters require the Phase 3 SQL parser".to_string(),
-                ));
+                options.where_clause = Some(crate::sql::validate_predicate(dialect, value)?);
             }
             other => {
                 return Err(DbError::InvalidArgument(format!(
@@ -712,11 +752,11 @@ mod tests {
             &self,
             schema: &str,
             relation: &str,
-            mut batches: RecordBatchStream,
+            batches: RecordBatchStream,
             mode: InsertMode,
         ) -> Result<u64> {
             let mut rows = 0usize;
-            while let Some(batch) = batches.next() {
+            for batch in batches {
                 rows += batch.map_err(DbError::from)?.num_rows();
             }
             self.inserts.lock().unwrap().push((
@@ -819,12 +859,65 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unparsed_where_query_param() {
+    fn applies_where_query_param() {
+        let fs = DatabaseFs::new(MockDatabase::new());
+        let mut file = fs
+            .open(
+                "/main/users.arrow?where=id > 0 AND name IS NOT NULL",
+                OpenMode::Read,
+                None,
+            )
+            .unwrap();
+        let mut data = Vec::new();
+        file.read_to_end(&mut data).unwrap();
+        let queries = fs.database().queries.lock().unwrap();
+        assert_eq!(
+            queries[0],
+            "SELECT * FROM \"main\".\"users\" WHERE id > 0 AND name IS NOT NULL"
+        );
+    }
+
+    #[test]
+    fn applies_percent_encoded_where_query_param() {
+        let fs = DatabaseFs::new(MockDatabase::new());
+        let mut file = fs
+            .open("/main/users.arrow?where=id%20%3E%200", OpenMode::Read, None)
+            .unwrap();
+        let mut data = Vec::new();
+        file.read_to_end(&mut data).unwrap();
+        let queries = fs.database().queries.lock().unwrap();
+        assert_eq!(queries[0], "SELECT * FROM \"main\".\"users\" WHERE id > 0");
+    }
+
+    #[test]
+    fn rejects_injection_where_query_param() {
         let fs = DatabaseFs::new(MockDatabase::new());
         assert!(matches!(
-            fs.open("/main/users.arrow?where=id=1", OpenMode::Read, None),
-            Err(FsError::NotSupported(_))
+            fs.open(
+                "/main/users.arrow?where=1); DROP TABLE users;--",
+                OpenMode::Read,
+                None
+            ),
+            Err(FsError::InvalidArgument(_))
         ));
+    }
+
+    #[test]
+    fn lists_view_depends_on() {
+        let fs = DatabaseFs::new(MockDatabase::new());
+        // The mock view definition is `... SELECT * FROM users`.
+        let entries = fs.ls("/main/active_users", true).unwrap();
+        assert!(entries
+            .iter()
+            .any(|info| info.name == "/main/active_users/depends_on"));
+
+        let deps = fs.ls("/main/active_users/depends_on", true).unwrap();
+        let users = deps
+            .iter()
+            .find(|info| info.name == "/main/active_users/depends_on/users")
+            .expect("view should depend on users");
+        assert_eq!(users.extra["kind"], "depends_on");
+        assert_eq!(users.extra["target"], "/main/users");
     }
 
     #[test]

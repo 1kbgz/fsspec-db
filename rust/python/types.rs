@@ -7,11 +7,6 @@ use fsspec_db::{
     RelationKind, SchemaInfo,
 };
 
-#[pyfunction]
-pub fn phase0_ready() -> bool {
-    true
-}
-
 #[pyclass(name = "SchemaInfo", skip_from_py_object)]
 #[derive(Clone, Debug)]
 pub struct PySchemaInfo {

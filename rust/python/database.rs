@@ -18,24 +18,22 @@ use crate::types::file_info_to_dict;
 #[derive(Clone)]
 struct PyDatabase {
     obj: Arc<Py<PyAny>>,
+    dialect: Dialect,
 }
 
 impl PyDatabase {
-    fn new(obj: Py<PyAny>) -> Self {
-        Self { obj: Arc::new(obj) }
+    fn new(py: Python<'_>, obj: Py<PyAny>) -> PyResult<Self> {
+        let dialect = obj.bind(py).call_method0("dialect")?.extract::<String>()?;
+        Ok(Self {
+            obj: Arc::new(obj),
+            dialect: parse_dialect(&dialect)?,
+        })
     }
 }
 
 impl Database for PyDatabase {
     fn dialect(&self) -> Dialect {
-        Python::attach(|py| {
-            self.obj
-                .bind(py)
-                .call_method0("dialect")
-                .and_then(|value| value.extract::<String>())
-                .map(|dialect| parse_dialect(&dialect))
-                .unwrap_or(Dialect::Generic)
-        })
+        self.dialect.clone()
     }
 
     fn list_schemas(&self) -> fsspec_db::Result<Vec<SchemaInfo>> {
@@ -158,10 +156,10 @@ pub struct PyDatabaseFs {
 #[pymethods]
 impl PyDatabaseFs {
     #[new]
-    fn py_new(database: Py<PyAny>) -> Self {
-        Self {
-            inner: DatabaseFs::new(PyDatabase::new(database)),
-        }
+    fn py_new(py: Python<'_>, database: Py<PyAny>) -> PyResult<Self> {
+        Ok(Self {
+            inner: DatabaseFs::new(PyDatabase::new(py, database)?),
+        })
     }
 
     fn protocol(&self) -> Vec<String> {
@@ -511,12 +509,15 @@ fn insert_mode_as_str(mode: &InsertMode) -> &'static str {
     }
 }
 
-fn parse_dialect(dialect: &str) -> Dialect {
+fn parse_dialect(dialect: &str) -> PyResult<Dialect> {
     match dialect {
-        "sqlite" => Dialect::Sqlite,
-        "postgres" | "postgresql" => Dialect::Postgres,
-        "mysql" => Dialect::MySql,
-        _ => Dialect::Generic,
+        "generic" => Ok(Dialect::Generic),
+        "sqlite" => Ok(Dialect::Sqlite),
+        "postgres" | "postgresql" => Ok(Dialect::Postgres),
+        "mysql" => Ok(Dialect::MySql),
+        other => Err(PyValueError::new_err(format!(
+            "unknown database dialect: {other}"
+        ))),
     }
 }
 

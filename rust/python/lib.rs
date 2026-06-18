@@ -14,6 +14,5 @@ fn fsspec_db(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<types::PyColumnInfo>()?;
     m.add_class::<types::PyIndexInfo>()?;
     m.add_class::<types::PyConstraintInfo>()?;
-    m.add_function(wrap_pyfunction!(types::phase0_ready, m)?)?;
     Ok(())
 }

@@ -41,6 +41,11 @@ dependencies = [
 docs = [
     "yardang",
 ]
+integration = [
+    "psycopg[binary]",
+    "pymysql",
+    "sqlalchemy>=2",
+]
 develop = [
     "build",
     "bump-my-version",

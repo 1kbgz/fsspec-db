@@ -3,14 +3,18 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use arrow::array::{
-    Array, ArrayRef, BinaryArray, BooleanArray, Float32Array, Float64Array, Int16Array, Int32Array,
-    Int64Array, Int8Array, LargeBinaryArray, LargeStringArray, StringArray, UInt16Array,
-    UInt32Array, UInt64Array, UInt8Array,
+    Array, ArrayRef, BinaryArray, BooleanArray, Date32Array, Float32Array, Float64Array,
+    Int16Array, Int32Array, Int64Array, Int8Array, LargeBinaryArray, LargeStringArray, StringArray,
+    TimestampMicrosecondArray, UInt16Array, UInt32Array, UInt64Array, UInt8Array,
 };
-use arrow::datatypes::{DataType, Field, Schema};
+use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
-use sqlx::mysql::{MySqlArguments, MySqlConnectOptions, MySqlPool, MySqlPoolOptions, MySqlRow};
-use sqlx::{AssertSqlSafe, Column, Row, TypeInfo, ValueRef};
+use sqlx::mysql::{
+    MySqlArguments, MySqlColumn, MySqlConnectOptions, MySqlPool, MySqlPoolOptions, MySqlRow,
+};
+use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use sqlx::types::{BigDecimal, JsonValue};
+use sqlx::{AssertSqlSafe, Column, Executor, Row, SqlSafeStr, Statement, TypeInfo, ValueRef};
 use tokio::runtime::Runtime;
 
 use crate::codec::rows_to_arrow;
@@ -47,9 +51,9 @@ impl MySqlDatabase {
     async fn relation_info_async(&self, schema: &str, relation: &str) -> Result<RelationInfo> {
         let row = sqlx::query(
             "SELECT
-                table_name,
-                table_type,
-                table_rows
+                table_name AS table_name,
+                table_type AS table_type,
+                table_rows AS table_rows
              FROM information_schema.tables
              WHERE table_schema = ?
                AND table_name = ?
@@ -60,18 +64,18 @@ impl MySqlDatabase {
         .fetch_optional(&self.pool)
         .await?
         .ok_or_else(|| DbError::NotFound(format!("relation not found: {schema}.{relation}")))?;
-        Ok(relation_from_row(row)?)
+        relation_from_row(row)
     }
 
     async fn table_columns_async(&self, schema: &str, relation: &str) -> Result<Vec<ColumnInfo>> {
         let rows = sqlx::query(
             "SELECT
-                column_name,
-                column_type,
-                is_nullable,
-                column_default,
-                ordinal_position,
-                column_key
+                column_name AS column_name,
+                column_type AS column_type,
+                is_nullable AS is_nullable,
+                column_default AS column_default,
+                ordinal_position AS ordinal_position,
+                column_key AS column_key
              FROM information_schema.columns
              WHERE table_schema = ? AND table_name = ?
              ORDER BY ordinal_position",
@@ -107,7 +111,7 @@ impl Database for MySqlDatabase {
     fn list_schemas(&self) -> Result<Vec<SchemaInfo>> {
         self.block_on(async {
             let rows = sqlx::query(
-                "SELECT schema_name
+                "SELECT schema_name AS schema_name
                  FROM information_schema.schemata
                  WHERE schema_name NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
                  ORDER BY schema_name",
@@ -130,9 +134,9 @@ impl Database for MySqlDatabase {
         self.block_on(async {
             let rows = sqlx::query(
                 "SELECT
-                    table_name,
-                    table_type,
-                    table_rows
+                    table_name AS table_name,
+                    table_type AS table_type,
+                    table_rows AS table_rows
                  FROM information_schema.tables
                  WHERE table_schema = ?
                    AND table_type IN ('BASE TABLE', 'VIEW')
@@ -157,7 +161,7 @@ impl Database for MySqlDatabase {
             self.relation_info_async(schema, relation).await?;
             let rows = sqlx::query(
                 "SELECT
-                    index_name,
+                    index_name AS index_name,
                     MIN(non_unique) AS non_unique,
                     MAX(index_type) AS index_type,
                     GROUP_CONCAT(column_name ORDER BY seq_in_index SEPARATOR ',') AS columns
@@ -190,8 +194,8 @@ impl Database for MySqlDatabase {
             self.relation_info_async(schema, relation).await?;
             let rows = sqlx::query(
                 "SELECT
-                    tc.constraint_name,
-                    tc.constraint_type,
+                    tc.constraint_name AS constraint_name,
+                    tc.constraint_type AS constraint_type,
                     COALESCE(GROUP_CONCAT(kcu.column_name ORDER BY kcu.ordinal_position SEPARATOR ','), '')
                         AS columns,
                     MAX(
@@ -258,7 +262,7 @@ impl Database for MySqlDatabase {
                 )));
             }
             let row = sqlx::query(
-                "SELECT view_definition
+                "SELECT view_definition AS view_definition
                  FROM information_schema.views
                  WHERE table_schema = ? AND table_name = ?",
             )
@@ -277,7 +281,17 @@ impl Database for MySqlDatabase {
                 query = bind_value(query, param);
             }
             let rows = query.fetch_all(&self.pool).await?;
-            mysql_rows_to_arrow(rows)
+            let columns = match rows.first() {
+                Some(row) => mysql_column_metadata(row.columns()),
+                None => {
+                    let mut conn = self.pool.acquire().await?;
+                    let statement = (&mut *conn)
+                        .prepare(AssertSqlSafe(sql.to_string()).into_sql_str())
+                        .await?;
+                    mysql_column_metadata(statement.columns())
+                }
+            };
+            mysql_rows_to_arrow(columns, rows)
         })
     }
 
@@ -460,27 +474,36 @@ fn downcast_array<T: 'static>(array: &dyn Array) -> Result<&T> {
     })
 }
 
-fn mysql_rows_to_arrow(rows: Vec<MySqlRow>) -> Result<RecordBatchStream> {
-    let Some(first) = rows.first() else {
-        return rows_to_arrow(Vec::new());
-    };
-    let names = first
-        .columns()
+fn mysql_column_metadata(columns: &[MySqlColumn]) -> Vec<(String, String)> {
+    columns
         .iter()
-        .map(|column| column.name().to_string())
+        .map(|column| {
+            (
+                column.name().to_string(),
+                column.type_info().name().to_string(),
+            )
+        })
+        .collect()
+}
+
+fn mysql_rows_to_arrow(
+    column_metadata: Vec<(String, String)>,
+    rows: Vec<MySqlRow>,
+) -> Result<RecordBatchStream> {
+    let names = column_metadata
+        .iter()
+        .map(|(name, _)| name.clone())
         .collect::<Vec<_>>();
-    let mut type_names = vec![Vec::new(); names.len()];
+    let mut type_names = column_metadata
+        .into_iter()
+        .map(|(_, type_name)| vec![type_name])
+        .collect::<Vec<_>>();
     for row in &rows {
         for (index, names) in type_names.iter_mut().enumerate() {
             let raw = row.try_get_raw(index)?;
             if !raw.is_null() {
                 names.push(raw.type_info().name().to_string());
             }
-        }
-    }
-    for (index, names) in type_names.iter_mut().enumerate() {
-        if names.is_empty() {
-            names.push(first.columns()[index].type_info().name().to_string());
         }
     }
     let mut columns = type_names
@@ -515,6 +538,10 @@ enum ColumnValues {
     Float64(Vec<Option<f64>>),
     Binary(Vec<Option<Vec<u8>>>),
     Utf8(Vec<Option<String>>),
+    Date32(Vec<Option<i32>>),
+    Timestamp(Vec<Option<i64>>),
+    Decimal(Vec<Option<String>>),
+    Json(Vec<Option<String>>),
     Unsupported(String, Vec<Option<String>>),
 }
 
@@ -537,7 +564,11 @@ impl ColumnValues {
                 Self::Binary(Vec::new())
             }
             "CHAR" | "VARCHAR" | "TINYTEXT" | "TEXT" | "MEDIUMTEXT" | "LONGTEXT" | "ENUM"
-            | "SET" | "JSON" | "NULL" => Self::Utf8(Vec::new()),
+            | "SET" | "NULL" => Self::Utf8(Vec::new()),
+            "DATE" => Self::Date32(Vec::new()),
+            "DATETIME" | "TIMESTAMP" => Self::Timestamp(Vec::new()),
+            "DECIMAL" => Self::Decimal(Vec::new()),
+            "JSON" => Self::Json(Vec::new()),
             other => Self::Unsupported(other.to_string(), Vec::new()),
         }
     }
@@ -564,6 +595,16 @@ impl ColumnValues {
             ColumnValues::Float64(values) => values.push(Some(row.try_get(index)?)),
             ColumnValues::Binary(values) => values.push(Some(row.try_get(index)?)),
             ColumnValues::Utf8(values) => values.push(Some(row.try_get(index)?)),
+            ColumnValues::Date32(values) => values.push(Some(naive_date_to_days(
+                row.try_get::<NaiveDate, _>(index)?,
+            ))),
+            ColumnValues::Timestamp(values) => values.push(Some(timestamp_micros(row, index)?)),
+            ColumnValues::Decimal(values) => {
+                values.push(Some(row.try_get::<BigDecimal, _>(index)?.to_string()))
+            }
+            ColumnValues::Json(values) => {
+                values.push(Some(row.try_get::<JsonValue, _>(index)?.to_string()))
+            }
             ColumnValues::Unsupported(name, _) => {
                 return Err(DbError::NotSupported(format!(
                     "MySQL query output type is not yet mapped to Arrow: {name}"
@@ -582,6 +623,9 @@ impl ColumnValues {
             ColumnValues::Float32(values) | ColumnValues::Float64(values) => values.push(None),
             ColumnValues::Binary(values) => values.push(None),
             ColumnValues::Utf8(values) | ColumnValues::Unsupported(_, values) => values.push(None),
+            ColumnValues::Date32(values) => values.push(None),
+            ColumnValues::Timestamp(values) => values.push(None),
+            ColumnValues::Decimal(values) | ColumnValues::Json(values) => values.push(None),
         }
     }
 
@@ -591,7 +635,12 @@ impl ColumnValues {
             ColumnValues::SignedInt(_) | ColumnValues::UnsignedInt(_) => DataType::Int64,
             ColumnValues::Float32(_) | ColumnValues::Float64(_) => DataType::Float64,
             ColumnValues::Binary(_) => DataType::Binary,
-            ColumnValues::Utf8(_) | ColumnValues::Unsupported(_, _) => DataType::Utf8,
+            ColumnValues::Utf8(_)
+            | ColumnValues::Unsupported(_, _)
+            | ColumnValues::Decimal(_)
+            | ColumnValues::Json(_) => DataType::Utf8,
+            ColumnValues::Date32(_) => DataType::Date32,
+            ColumnValues::Timestamp(_) => DataType::Timestamp(TimeUnit::Microsecond, None),
         }
     }
 
@@ -611,10 +660,31 @@ impl ColumnValues {
                     .collect::<Vec<_>>();
                 Arc::new(BinaryArray::from(refs)) as ArrayRef
             }
-            ColumnValues::Utf8(values) | ColumnValues::Unsupported(_, values) => {
-                Arc::new(StringArray::from(values)) as ArrayRef
+            ColumnValues::Utf8(values)
+            | ColumnValues::Unsupported(_, values)
+            | ColumnValues::Decimal(values)
+            | ColumnValues::Json(values) => Arc::new(StringArray::from(values)) as ArrayRef,
+            ColumnValues::Date32(values) => Arc::new(Date32Array::from(values)) as ArrayRef,
+            ColumnValues::Timestamp(values) => {
+                Arc::new(TimestampMicrosecondArray::from(values)) as ArrayRef
             }
         }
+    }
+}
+
+fn naive_date_to_days(date: NaiveDate) -> i32 {
+    date.signed_duration_since(NaiveDate::from_ymd_opt(1970, 1, 1).expect("valid epoch"))
+        .num_days() as i32
+}
+
+fn timestamp_micros(row: &MySqlRow, index: usize) -> Result<i64> {
+    // MySQL `TIMESTAMP` may decode to `DateTime<Utc>`; `DATETIME` to `NaiveDateTime`.
+    match row.try_get::<DateTime<Utc>, _>(index) {
+        Ok(value) => Ok(value.timestamp_micros()),
+        Err(_) => Ok(row
+            .try_get::<NaiveDateTime, _>(index)?
+            .and_utc()
+            .timestamp_micros()),
     }
 }
 
@@ -681,6 +751,75 @@ mod tests {
     fn splits_mysql_column_lists() {
         assert_eq!(split_csv("id,name"), vec!["id", "name"]);
         assert!(split_csv("").is_empty());
+    }
+
+    #[test]
+    fn builds_empty_arrow_schema_from_mysql_metadata() {
+        let mut reader = mysql_rows_to_arrow(
+            vec![
+                ("id".to_string(), "BIGINT".to_string()),
+                ("name".to_string(), "VARCHAR".to_string()),
+            ],
+            Vec::new(),
+        )
+        .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+
+        assert_eq!(batch.num_rows(), 0);
+        assert_eq!(batch.schema().field(0).name(), "id");
+        assert_eq!(batch.schema().field(0).data_type(), &DataType::Int64);
+        assert_eq!(batch.schema().field(1).name(), "name");
+        assert_eq!(batch.schema().field(1).data_type(), &DataType::Utf8);
+    }
+
+    #[test]
+    fn mysql_rich_types_map_to_arrow() {
+        let Ok(url) = std::env::var("FSSPEC_DB_MYSQL_URL") else {
+            return;
+        };
+        let db = MySqlDatabase::connect(&url).unwrap();
+        db.runtime
+            .block_on(async {
+                sqlx::query("DROP TABLE IF EXISTS fsspec_db_rich")
+                    .execute(&db.pool)
+                    .await?;
+                sqlx::query(
+                    "CREATE TABLE fsspec_db_rich (
+                        amount DECIMAL(10, 2),
+                        created DATE,
+                        ts DATETIME,
+                        doc JSON
+                    )",
+                )
+                .execute(&db.pool)
+                .await?;
+                sqlx::query(
+                    "INSERT INTO fsspec_db_rich VALUES
+                     (12.34, '2020-01-02', '2020-01-02 03:04:05', '{\"a\": 1}'),
+                     (NULL, NULL, NULL, NULL)",
+                )
+                .execute(&db.pool)
+                .await?;
+                Ok::<_, sqlx::Error>(())
+            })
+            .unwrap();
+
+        let mut reader = db
+            .query(
+                "SELECT amount, created, ts, doc FROM fsspec_db_rich ORDER BY created IS NULL, created",
+                &[],
+            )
+            .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+        let schema = batch.schema();
+        assert_eq!(schema.field(0).data_type(), &DataType::Utf8); // decimal -> text
+        assert_eq!(schema.field(1).data_type(), &DataType::Date32);
+        assert_eq!(
+            schema.field(2).data_type(),
+            &DataType::Timestamp(TimeUnit::Microsecond, None)
+        );
+        assert_eq!(schema.field(3).data_type(), &DataType::Utf8); // json -> text
+        assert_eq!(batch.num_rows(), 2);
     }
 
     #[test]
@@ -756,6 +895,14 @@ mod tests {
         assert_eq!(batch.schema().field(2).data_type(), &DataType::Float64);
         assert_eq!(batch.schema().field(3).data_type(), &DataType::Boolean);
         assert_eq!(batch.schema().field(4).data_type(), &DataType::Binary);
+
+        let mut reader = db
+            .query("SELECT id, name FROM fsspec_db_users WHERE id < 0", &[])
+            .unwrap();
+        let batch = reader.next().unwrap().unwrap();
+        assert_eq!(batch.num_rows(), 0);
+        assert_eq!(batch.schema().field(0).name(), "id");
+        assert_eq!(batch.schema().field(1).name(), "name");
 
         let insert_schema = Arc::new(Schema::new(vec![
             Field::new("name", DataType::Utf8, false),
