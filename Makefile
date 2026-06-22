@@ -159,7 +159,14 @@ test-integration-rs:  ## run the env-gated rust integration tests
 test-integration-py:  ## run the env-gated python integration tests
 	FSSPEC_DB_POSTGRES_URL="$(FSSPEC_DB_POSTGRES_URL)" FSSPEC_DB_MYSQL_URL="$(FSSPEC_DB_MYSQL_URL)" python -m pytest -v fsspec_db/tests/test_integration.py
 
-test-integration: dbs-up dbs-wait test-integration-rs test-integration-py  ## bring up dbs and run all integration tests
+test-integration:  ## bring up dbs, run all integration tests, and always tear them down
+	@status=0; \
+	{ $(MAKE) dbs-up \
+		&& $(MAKE) dbs-wait \
+		&& $(MAKE) test-integration-rs \
+		&& $(MAKE) test-integration-py; } || status=$$?; \
+	$(MAKE) dbs-down; \
+	exit $$status
 
 ###########
 # VERSION #

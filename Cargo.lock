@@ -761,6 +761,7 @@ version = "0.1.1"
 dependencies = [
  "arrow",
  "bytes",
+ "csv-core",
  "fsspec_rs",
  "parquet",
  "sqlparser",
