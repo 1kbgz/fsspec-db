@@ -2,10 +2,14 @@ import io
 import sqlite3
 
 import fsspec
+import fsspec.config as fsspec_config
 import pyarrow as pa
 import pyarrow.ipc as ipc
 import pyarrow.parquet as pq
+import pytest
 
+import fsspec_db.mysql as mysql_mod
+import fsspec_db.postgres as postgres_mod
 from fsspec_db import (
     AbstractDatabase,
     AbstractDatabaseFileSystem,
@@ -18,8 +22,14 @@ from fsspec_db import (
     SchemaInfo,
     SQLiteDatabaseFileSystem,
 )
-from fsspec_db.mysql import _dsn_from_options as mysql_dsn_from_options
-from fsspec_db.postgres import _dsn_from_options
+from fsspec_db.mysql import (
+    _dsn_from_options as mysql_dsn_from_options,
+    _pool_options_from_options as mysql_pool_options_from_options,
+)
+from fsspec_db.postgres import (
+    _dsn_from_options,
+    _pool_options_from_options as pg_pool_options_from_options,
+)
 
 
 class MockDatabase(AbstractDatabase):
@@ -312,6 +322,12 @@ def test_postgres_filesystem_url_parsing_and_registration():
     assert _dsn_from_options(options) == ("postgresql://ada:secret@localhost:5432/app?sslmode=require")
     assert options == {}
 
+    options = {"min_connections": "1", "max_pool_size": 4}
+    assert pg_pool_options_from_options(options) == {"min_connections": 1, "max_connections": 4}
+    assert options == {}
+    with pytest.raises(ValueError, match="min_connections"):
+        pg_pool_options_from_options({"min_connections": 3, "max_connections": 2})
+
 
 def test_mysql_filesystem_url_parsing_and_registration():
     assert fsspec.get_filesystem_class("db+mysql") is MySQLDatabaseFileSystem
@@ -329,6 +345,126 @@ def test_mysql_filesystem_url_parsing_and_registration():
         "charset": "utf8mb4",
     }
     assert mysql_dsn_from_options(options) == ("mysql://ada:secret@localhost:3306/app?ssl-mode=REQUIRED&charset=utf8mb4")
+    assert options == {}
+
+    options = {"min_pool_size": "0", "max_connections": "5"}
+    assert mysql_pool_options_from_options(options) == {"min_connections": 0, "max_connections": 5}
+    assert options == {}
+    with pytest.raises(ValueError, match="max_connections"):
+        mysql_pool_options_from_options({"max_connections": 0})
+
+
+def test_postgres_fsspec_config_connection_options(monkeypatch):
+    class FakeRustPostgresFs:
+        def __init__(self, source, **kwargs):
+            self.source = source
+            self.kwargs = kwargs
+
+    PostgresDatabaseFileSystem.clear_instance_cache()
+    monkeypatch.setattr(postgres_mod._rust, "RustPostgresDatabaseFs", FakeRustPostgresFs)
+    monkeypatch.setitem(
+        fsspec_config.conf,
+        "db+postgresql",
+        {
+            "host": "localhost",
+            "database": "app",
+            "user": "ada",
+            "password": "secret",
+            "min_connections": "1",
+            "max_connections": "4",
+        },
+    )
+
+    fs = PostgresDatabaseFileSystem(skip_instance_cache=True)
+
+    assert fs.dsn == "postgresql://ada:secret@localhost/app"
+    assert fs.pool_options == {"min_connections": 1, "max_connections": 4}
+    assert fs._rust.source == fs.dsn
+    assert fs._rust.kwargs == fs.pool_options
+
+
+def test_postgres_explicit_dsn_wins_over_connection_options(monkeypatch):
+    class FakeRustPostgresFs:
+        def __init__(self, source, **kwargs):
+            self.source = source
+            self.kwargs = kwargs
+
+    PostgresDatabaseFileSystem.clear_instance_cache()
+    monkeypatch.setattr(postgres_mod._rust, "RustPostgresDatabaseFs", FakeRustPostgresFs)
+
+    fs = PostgresDatabaseFileSystem(
+        dsn="postgresql://primary/app",
+        database="ignored",
+        user="ada",
+        password="secret",
+        min_connections="2",
+        skip_instance_cache=True,
+    )
+
+    assert fs.dsn == "postgresql://primary/app"
+    assert fs.pool_options == {"min_connections": 2}
+    assert fs._rust.source == fs.dsn
+    assert fs._rust.kwargs == fs.pool_options
+
+    options = {"database": "ignored", "user": "ada", "password": "secret"}
+    assert _dsn_from_options(options) is None
+    assert options == {}
+
+
+def test_mysql_fsspec_config_connection_options(monkeypatch):
+    class FakeRustMySqlFs:
+        def __init__(self, source, **kwargs):
+            self.source = source
+            self.kwargs = kwargs
+
+    MySQLDatabaseFileSystem.clear_instance_cache()
+    monkeypatch.setattr(mysql_mod._rust, "RustMySqlDatabaseFs", FakeRustMySqlFs)
+    monkeypatch.setitem(
+        fsspec_config.conf,
+        "db+mysql",
+        {
+            "host": "localhost",
+            "database": "app",
+            "user": "ada",
+            "password": "secret",
+            "min_pool_size": "1",
+            "max_pool_size": "3",
+        },
+    )
+
+    fs = MySQLDatabaseFileSystem(skip_instance_cache=True)
+
+    assert fs.dsn == "mysql://ada:secret@localhost/app"
+    assert fs.pool_options == {"min_connections": 1, "max_connections": 3}
+    assert fs._rust.source == fs.dsn
+    assert fs._rust.kwargs == fs.pool_options
+
+
+def test_mysql_explicit_dsn_wins_over_connection_options(monkeypatch):
+    class FakeRustMySqlFs:
+        def __init__(self, source, **kwargs):
+            self.source = source
+            self.kwargs = kwargs
+
+    MySQLDatabaseFileSystem.clear_instance_cache()
+    monkeypatch.setattr(mysql_mod._rust, "RustMySqlDatabaseFs", FakeRustMySqlFs)
+
+    fs = MySQLDatabaseFileSystem(
+        dsn="mysql://primary/app",
+        database="ignored",
+        user="ada",
+        password="secret",
+        min_pool_size="2",
+        skip_instance_cache=True,
+    )
+
+    assert fs.dsn == "mysql://primary/app"
+    assert fs.pool_options == {"min_connections": 2}
+    assert fs._rust.source == fs.dsn
+    assert fs._rust.kwargs == fs.pool_options
+
+    options = {"database": "ignored", "user": "ada", "password": "secret"}
+    assert mysql_dsn_from_options(options) is None
     assert options == {}
 
 

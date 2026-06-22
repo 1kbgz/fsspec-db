@@ -1,7 +1,7 @@
 use arrow::record_batch::RecordBatchReader;
 
 use crate::types::{ColumnInfo, ConstraintInfo, Dialect, IndexInfo, RelationInfo, SchemaInfo};
-use crate::Result;
+use crate::{DbError, Result};
 
 pub type RecordBatchStream = Box<dyn RecordBatchReader + Send>;
 
@@ -25,6 +25,37 @@ pub enum DbValue {
 pub enum InsertMode {
     Append,
     Truncate,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DbPoolOptions {
+    pub min_connections: Option<u32>,
+    pub max_connections: Option<u32>,
+}
+
+impl DbPoolOptions {
+    pub fn new(min_connections: Option<u32>, max_connections: Option<u32>) -> Self {
+        Self {
+            min_connections,
+            max_connections,
+        }
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        if self.max_connections == Some(0) {
+            return Err(DbError::InvalidArgument(
+                "max_connections must be greater than 0".to_string(),
+            ));
+        }
+        if let (Some(min), Some(max)) = (self.min_connections, self.max_connections) {
+            if min > max {
+                return Err(DbError::InvalidArgument(
+                    "min_connections cannot exceed max_connections".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 pub trait Database: Send + Sync {

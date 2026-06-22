@@ -39,8 +39,8 @@ The backend introspects:
 - indexes from `PRAGMA index_list` and `PRAGMA index_info`;
 - primary keys and foreign keys from `PRAGMA table_info` and `PRAGMA foreign_key_list`.
 
-Relation lookups check only the requested relation. Listing a whole schema may still count
-rows for every listed table so `row_count` is available in `info()`.
+Relation lookups check only the requested relation and count rows only for that relation.
+Schema listings do not count every table.
 
 ## Reading Data
 
@@ -97,7 +97,9 @@ fs.put_file("rows.parquet", "/main/users.parquet", mode="append")
 
 ## Type Handling
 
-SQLite values are converted into Arrow arrays with a small affinity mapper:
+SQLite values are converted into Arrow arrays with a small affinity mapper. Query results use
+declared column metadata plus observed non-null runtime value types, so NULL-first and mixed
+numeric expression columns can still produce numeric Arrow arrays.
 
 | SQLite value/type | Arrow type |
 | ----------------- | ---------- |

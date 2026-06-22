@@ -18,7 +18,7 @@ use sqlx::{AssertSqlSafe, Column, Executor, Row, SqlSafeStr, Statement, TypeInfo
 use tokio::runtime::Runtime;
 
 use crate::codec::rows_to_arrow;
-use crate::database::{Database, DbValue, InsertMode, RecordBatchStream};
+use crate::database::{Database, DbPoolOptions, DbValue, InsertMode, RecordBatchStream};
 use crate::sql::{insert_sql, quote_identifier};
 use crate::types::{
     ColumnInfo, ConstraintInfo, ConstraintKind, Dialect, IndexInfo, RelationInfo, RelationKind,
@@ -35,12 +35,24 @@ pub struct MySqlDatabase {
 
 impl MySqlDatabase {
     pub fn connect(source: &str) -> Result<Self> {
+        Self::connect_with_pool_options(source, DbPoolOptions::default())
+    }
+
+    pub fn connect_with_pool_options(source: &str, pool_options: DbPoolOptions) -> Result<Self> {
+        pool_options.validate()?;
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .map_err(DbError::from)?;
         let options = MySqlConnectOptions::from_str(source)?;
-        let pool = runtime.block_on(MySqlPoolOptions::new().connect_with(options))?;
+        let mut builder = MySqlPoolOptions::new();
+        if let Some(min_connections) = pool_options.min_connections {
+            builder = builder.min_connections(min_connections);
+        }
+        if let Some(max_connections) = pool_options.max_connections {
+            builder = builder.max_connections(max_connections);
+        }
+        let pool = runtime.block_on(builder.connect_with(options))?;
         Ok(Self { pool, runtime })
     }
 
