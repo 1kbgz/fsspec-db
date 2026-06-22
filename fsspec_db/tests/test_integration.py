@@ -110,10 +110,10 @@ def test_backend_round_trips(case):
         # write (append) round-trip
         fs.pipe_file(
             f"/{schema}/{table}.arrow",
-            _arrow_stream_bytes(pa.table({"name": ["katherine"], "score": [3.5]})),
+            _arrow_stream_bytes(pa.table({"name": ["katherine", "dorothy"], "score": [3.5, 4.5]})),
             mode="append",
         )
         after = fs.query(f"SELECT name FROM {schema}.{table} ORDER BY id")
-        assert after.column("name").to_pylist() == ["ada", "grace", "katherine"]
+        assert after.column("name").to_pylist() == ["ada", "grace", "katherine", "dorothy"]
     finally:
         engine.dispose()

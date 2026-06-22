@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashSet};
+use std::fmt::Write;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -18,7 +19,7 @@ use tokio::runtime::Runtime;
 
 use crate::codec::rows_to_arrow;
 use crate::database::{Database, DbValue, InsertMode, RecordBatchStream};
-use crate::sql::{insert_sql, quote_identifier};
+use crate::sql::quote_identifier;
 use crate::types::{
     ColumnInfo, ConstraintInfo, ConstraintKind, Dialect, IndexInfo, RelationInfo, RelationKind,
     SchemaInfo,
@@ -380,26 +381,172 @@ impl Database for PostgresDatabase {
                         )));
                     }
                 }
-                let sql = insert_sql(
-                    &Dialect::Postgres,
-                    schema,
-                    relation,
-                    &columns,
-                    batch.num_rows(),
-                )?;
-                let mut query = sqlx::query(AssertSqlSafe(sql));
-                for row in 0..batch.num_rows() {
-                    for column in batch.columns() {
-                        query = bind_arrow_value(query, column.as_ref(), row)?;
-                    }
+                let sql = copy_in_sql(schema, relation, &columns)?;
+                let data = batch_to_copy_csv(&batch)?;
+                let mut copy = (*tx).copy_in_raw(&sql).await?;
+                if let Err(err) = copy.send(data).await {
+                    let _ = copy.abort("fsspec-db COPY input failed").await;
+                    return Err(DbError::from(err));
                 }
-                inserted += query.execute(&mut *tx).await?.rows_affected();
+                inserted += copy.finish().await?;
             }
 
             tx.commit().await?;
             Ok(inserted)
         })
     }
+}
+
+fn copy_in_sql(schema: &str, relation: &str, columns: &[String]) -> Result<String> {
+    if columns.is_empty() {
+        return Err(DbError::InvalidArgument(
+            "COPY requires at least one column".to_string(),
+        ));
+    }
+
+    let relation = format!(
+        "{}.{}",
+        quote_identifier(&Dialect::Postgres, schema)?,
+        quote_identifier(&Dialect::Postgres, relation)?
+    );
+    let columns = columns
+        .iter()
+        .map(|column| quote_identifier(&Dialect::Postgres, column))
+        .collect::<Result<Vec<_>>>()?
+        .join(", ");
+    Ok(format!(
+        "COPY {relation} ({columns}) FROM STDIN WITH (FORMAT csv, NULL '\\N')"
+    ))
+}
+
+fn batch_to_copy_csv(batch: &RecordBatch) -> Result<Vec<u8>> {
+    let mut data = Vec::new();
+    for row in 0..batch.num_rows() {
+        for (index, column) in batch.columns().iter().enumerate() {
+            if index > 0 {
+                data.push(b',');
+            }
+            match copy_csv_value(column.as_ref(), row)? {
+                Some(value) => push_csv_escaped_field(&mut data, value.as_bytes()),
+                None => data.extend_from_slice(b"\\N"),
+            }
+        }
+        data.push(b'\n');
+    }
+    Ok(data)
+}
+
+fn copy_csv_value(array: &dyn Array, row: usize) -> Result<Option<String>> {
+    if array.is_null(row) || matches!(array.data_type(), DataType::Null) {
+        return Ok(None);
+    }
+
+    let value = match array.data_type() {
+        DataType::Null => return Ok(None),
+        DataType::Boolean => {
+            let array = downcast_array::<BooleanArray>(array)?;
+            (if array.value(row) { "true" } else { "false" }).to_string()
+        }
+        DataType::Int8 => {
+            let array = downcast_array::<Int8Array>(array)?;
+            i16::from(array.value(row)).to_string()
+        }
+        DataType::Int16 => {
+            let array = downcast_array::<Int16Array>(array)?;
+            array.value(row).to_string()
+        }
+        DataType::Int32 => {
+            let array = downcast_array::<Int32Array>(array)?;
+            array.value(row).to_string()
+        }
+        DataType::Int64 => {
+            let array = downcast_array::<Int64Array>(array)?;
+            array.value(row).to_string()
+        }
+        DataType::UInt8 => {
+            let array = downcast_array::<UInt8Array>(array)?;
+            i16::from(array.value(row)).to_string()
+        }
+        DataType::UInt16 => {
+            let array = downcast_array::<UInt16Array>(array)?;
+            i32::from(array.value(row)).to_string()
+        }
+        DataType::UInt32 => {
+            let array = downcast_array::<UInt32Array>(array)?;
+            i64::from(array.value(row)).to_string()
+        }
+        DataType::UInt64 => {
+            let array = downcast_array::<UInt64Array>(array)?;
+            let value = i64::try_from(array.value(row)).map_err(|_| {
+                DbError::InvalidArgument("UInt64 value does not fit in Postgres BIGINT".to_string())
+            })?;
+            value.to_string()
+        }
+        DataType::Float32 => {
+            let array = downcast_array::<Float32Array>(array)?;
+            array.value(row).to_string()
+        }
+        DataType::Float64 => {
+            let array = downcast_array::<Float64Array>(array)?;
+            array.value(row).to_string()
+        }
+        DataType::Utf8 => {
+            let array = downcast_array::<StringArray>(array)?;
+            array.value(row).to_string()
+        }
+        DataType::LargeUtf8 => {
+            let array = downcast_array::<LargeStringArray>(array)?;
+            array.value(row).to_string()
+        }
+        DataType::Binary => {
+            let array = downcast_array::<BinaryArray>(array)?;
+            postgres_bytea_hex(array.value(row))?
+        }
+        DataType::LargeBinary => {
+            let array = downcast_array::<LargeBinaryArray>(array)?;
+            postgres_bytea_hex(array.value(row))?
+        }
+        other => {
+            return Err(DbError::NotSupported(format!(
+                "Postgres insert does not support Arrow type {other:?}"
+            )));
+        }
+    };
+    Ok(Some(value))
+}
+
+fn push_csv_escaped_field(data: &mut Vec<u8>, value: &[u8]) {
+    let mut writer = csv_core::WriterBuilder::new()
+        .quote_style(csv_core::QuoteStyle::Always)
+        .build();
+    let mut input = value;
+    let mut out = [0_u8; 1024];
+    loop {
+        let (result, consumed, written) = writer.field(input, &mut out);
+        data.extend_from_slice(&out[..written]);
+        input = &input[consumed..];
+        match result {
+            csv_core::WriteResult::InputEmpty => break,
+            csv_core::WriteResult::OutputFull => {}
+        }
+    }
+    loop {
+        let (result, written) = writer.finish(&mut out);
+        data.extend_from_slice(&out[..written]);
+        match result {
+            csv_core::WriteResult::InputEmpty => return,
+            csv_core::WriteResult::OutputFull => {}
+        }
+    }
+}
+
+fn postgres_bytea_hex(value: &[u8]) -> Result<String> {
+    let mut out = String::with_capacity(2 + value.len() * 2);
+    out.push_str("\\x");
+    for byte in value {
+        write!(&mut out, "{byte:02x}").map_err(|err| DbError::Other(err.to_string()))?;
+    }
+    Ok(out)
 }
 
 async fn primary_key_columns(
@@ -462,88 +609,6 @@ fn bind_value<'q>(query: PgQuery<'q>, value: &'q DbValue) -> PgQuery<'q> {
         DbValue::Float64(value) => query.bind(*value),
         DbValue::String(value) => query.bind(value),
         DbValue::Binary(value) => query.bind(value.as_slice()),
-    }
-}
-
-fn bind_arrow_value<'q>(
-    query: PgQuery<'q>,
-    array: &'q dyn Array,
-    row: usize,
-) -> Result<PgQuery<'q>> {
-    if array.is_null(row) {
-        return Ok(query.bind(Option::<i64>::None));
-    }
-
-    match array.data_type() {
-        DataType::Null => Ok(query.bind(Option::<i64>::None)),
-        DataType::Boolean => {
-            let array = downcast_array::<BooleanArray>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::Int8 => {
-            let array = downcast_array::<Int8Array>(array)?;
-            Ok(query.bind(i16::from(array.value(row))))
-        }
-        DataType::Int16 => {
-            let array = downcast_array::<Int16Array>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::Int32 => {
-            let array = downcast_array::<Int32Array>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::Int64 => {
-            let array = downcast_array::<Int64Array>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::UInt8 => {
-            let array = downcast_array::<UInt8Array>(array)?;
-            Ok(query.bind(i16::from(array.value(row))))
-        }
-        DataType::UInt16 => {
-            let array = downcast_array::<UInt16Array>(array)?;
-            let value = i32::from(array.value(row));
-            Ok(query.bind(value))
-        }
-        DataType::UInt32 => {
-            let array = downcast_array::<UInt32Array>(array)?;
-            let value = i64::from(array.value(row));
-            Ok(query.bind(value))
-        }
-        DataType::UInt64 => {
-            let array = downcast_array::<UInt64Array>(array)?;
-            let value = i64::try_from(array.value(row)).map_err(|_| {
-                DbError::InvalidArgument("UInt64 value does not fit in Postgres BIGINT".to_string())
-            })?;
-            Ok(query.bind(value))
-        }
-        DataType::Float32 => {
-            let array = downcast_array::<Float32Array>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::Float64 => {
-            let array = downcast_array::<Float64Array>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::Utf8 => {
-            let array = downcast_array::<StringArray>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::LargeUtf8 => {
-            let array = downcast_array::<LargeStringArray>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::Binary => {
-            let array = downcast_array::<BinaryArray>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        DataType::LargeBinary => {
-            let array = downcast_array::<LargeBinaryArray>(array)?;
-            Ok(query.bind(array.value(row)))
-        }
-        other => Err(DbError::NotSupported(format!(
-            "Postgres insert does not support Arrow type {other:?}"
-        ))),
     }
 }
 
@@ -852,6 +917,41 @@ mod tests {
     fn splits_postgres_column_lists() {
         assert_eq!(split_csv("id,name"), vec!["id", "name"]);
         assert!(split_csv("").is_empty());
+    }
+
+    #[test]
+    fn builds_postgres_copy_input() {
+        assert_eq!(
+            copy_in_sql(
+                "public",
+                "users",
+                &["name".to_string(), "score".to_string()]
+            )
+            .unwrap(),
+            "COPY \"public\".\"users\" (\"name\", \"score\") FROM STDIN WITH (FORMAT csv, NULL '\\N')"
+        );
+
+        let payloads = [Some(vec![0_u8, 255_u8]), None];
+        let payload_refs = payloads
+            .iter()
+            .map(|value| value.as_deref())
+            .collect::<Vec<_>>();
+        let batch = RecordBatch::try_new(
+            Arc::new(Schema::new(vec![
+                Field::new("name", DataType::Utf8, true),
+                Field::new("score", DataType::Float64, true),
+                Field::new("payload", DataType::Binary, true),
+            ])),
+            vec![
+                Arc::new(StringArray::from(vec![Some("Ada, \"A\""), None])) as ArrayRef,
+                Arc::new(Float64Array::from(vec![Some(1.5), None])) as ArrayRef,
+                Arc::new(BinaryArray::from(payload_refs)) as ArrayRef,
+            ],
+        )
+        .unwrap();
+
+        let csv = String::from_utf8(batch_to_copy_csv(&batch).unwrap()).unwrap();
+        assert_eq!(csv, "\"Ada, \"\"A\"\"\",\"1.5\",\"\\x00ff\"\n\\N,\\N,\\N\n");
     }
 
     #[test]
