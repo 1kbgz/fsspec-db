@@ -289,6 +289,22 @@ filesystem path model as SQLite and are exposed as <code class="docutils literal
 <span class="p">)</span>
 </pre></div>
 </div>
+<p>Pool sizing can be set for both networked backends with <code class="docutils literal notranslate"><span class="pre">min_connections</span></code> and
+<code class="docutils literal notranslate"><span class="pre">max_connections</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pg</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span>
+    <span class="s2">&quot;db+postgresql&quot;</span><span class="p">,</span>
+    <span class="n">dsn</span><span class="o">=</span><span class="s2">&quot;postgresql://user:password@localhost:5432/app&quot;</span><span class="p">,</span>
+    <span class="n">min_connections</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">max_connections</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>These options also work through fsspec config files. For example, a config section named
+<code class="docutils literal notranslate"><span class="pre">db+postgresql</span></code> or <code class="docutils literal notranslate"><span class="pre">db+mysql</span></code> can provide the same <code class="docutils literal notranslate"><span class="pre">host</span></code>, <code class="docutils literal notranslate"><span class="pre">user</span></code>, <code class="docutils literal notranslate"><span class="pre">password</span></code>,
+<code class="docutils literal notranslate"><span class="pre">database</span></code>, <code class="docutils literal notranslate"><span class="pre">min_connections</span></code>, and <code class="docutils literal notranslate"><span class="pre">max_connections</span></code> keys; explicit constructor
+arguments still win. If <code class="docutils literal notranslate"><span class="pre">dsn</span></code> or <code class="docutils literal notranslate"><span class="pre">url</span></code> is passed together with connection fields such
+as <code class="docutils literal notranslate"><span class="pre">database</span></code> or <code class="docutils literal notranslate"><span class="pre">user</span></code>, the explicit source is used and those connection fields are
+consumed instead of being passed through as generic fsspec storage options.</p>
 </section>
 <section id="metadata">
 <h2>Metadata<a class="headerlink" href="#metadata" title="Link to this heading">¶</a></h2>

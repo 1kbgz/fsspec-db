@@ -277,8 +277,8 @@ Python as the <code class="docutils literal notranslate"><span class="pre">db+sq
 <li><p>indexes from <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">index_list</span></code> and <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">index_info</span></code>;</p></li>
 <li><p>primary keys and foreign keys from <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">table_info</span></code> and <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">foreign_key_list</span></code>.</p></li>
 </ul>
-<p>Relation lookups check only the requested relation. Listing a whole schema may still count
-rows for every listed table so <code class="docutils literal notranslate"><span class="pre">row_count</span></code> is available in <code class="docutils literal notranslate"><span class="pre">info()</span></code>.</p>
+<p>Relation lookups check only the requested relation and count rows only for that relation.
+Schema listings do not count every table.</p>
 </section>
 <section id="reading-data">
 <h2>Reading Data<a class="headerlink" href="#reading-data" title="Link to this heading">¶</a></h2>
@@ -331,7 +331,9 @@ transaction, then inserts rows.</p>
 </section>
 <section id="type-handling">
 <h2>Type Handling<a class="headerlink" href="#type-handling" title="Link to this heading">¶</a></h2>
-<p>SQLite values are converted into Arrow arrays with a small affinity mapper:</p>
+<p>SQLite values are converted into Arrow arrays with a small affinity mapper. Query results use
+declared column metadata plus observed non-null runtime value types, so NULL-first and mixed
+numeric expression columns can still produce numeric Arrow arrays.</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
