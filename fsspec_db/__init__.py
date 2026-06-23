@@ -12,7 +12,7 @@ from .spec import (
 )
 from .sqlite import SQLiteDatabaseFileSystem
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 __all__ = [
     "AbstractDatabase",
