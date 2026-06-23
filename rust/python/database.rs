@@ -10,7 +10,8 @@ use pyo3::types::{PyBool, PyBytes, PyDict, PyList};
 use fsspec_db::{
     arrow_to_ipc, ipc_to_arrow, ColumnInfo, ConstraintInfo, ConstraintKind, Database, DatabaseFs,
     DbError, DbValue, Dialect, FileSystem, FsError, IndexInfo, InsertMode, MySqlDatabase,
-    PostgresDatabase, RecordBatchStream, RelationInfo, RelationKind, SchemaInfo, SqliteDatabase,
+    DbPoolOptions, PostgresDatabase, RecordBatchStream, RelationInfo, RelationKind, SchemaInfo,
+    SqliteDatabase,
 };
 
 use crate::types::file_info_to_dict;
@@ -317,9 +318,20 @@ pub struct PyPostgresDatabaseFs {
 #[pymethods]
 impl PyPostgresDatabaseFs {
     #[new]
-    fn py_new(source: &str) -> PyResult<Self> {
+    #[pyo3(signature = (source, min_connections = None, max_connections = None))]
+    fn py_new(
+        source: &str,
+        min_connections: Option<u32>,
+        max_connections: Option<u32>,
+    ) -> PyResult<Self> {
         Ok(Self {
-            inner: DatabaseFs::new(PostgresDatabase::connect(source).map_err(db_error_to_pyerr)?),
+            inner: DatabaseFs::new(
+                PostgresDatabase::connect_with_pool_options(
+                    source,
+                    DbPoolOptions::new(min_connections, max_connections),
+                )
+                .map_err(db_error_to_pyerr)?,
+            ),
         })
     }
 
@@ -407,9 +419,20 @@ pub struct PyMySqlDatabaseFs {
 #[pymethods]
 impl PyMySqlDatabaseFs {
     #[new]
-    fn py_new(source: &str) -> PyResult<Self> {
+    #[pyo3(signature = (source, min_connections = None, max_connections = None))]
+    fn py_new(
+        source: &str,
+        min_connections: Option<u32>,
+        max_connections: Option<u32>,
+    ) -> PyResult<Self> {
         Ok(Self {
-            inner: DatabaseFs::new(MySqlDatabase::connect(source).map_err(db_error_to_pyerr)?),
+            inner: DatabaseFs::new(
+                MySqlDatabase::connect_with_pool_options(
+                    source,
+                    DbPoolOptions::new(min_connections, max_connections),
+                )
+                .map_err(db_error_to_pyerr)?,
+            ),
         })
     }
 

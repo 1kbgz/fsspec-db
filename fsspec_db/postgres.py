@@ -33,12 +33,16 @@ class PostgresDatabaseFileSystem(fsspec.AbstractFileSystem):
         return {"dsn": dsn}
 
     def __init__(self, dsn: str | None = None, **storage_options: Any) -> None:
-        source = dsn or storage_options.pop("url", None) or _dsn_from_options(storage_options)
+        url = storage_options.pop("url", None)
+        option_source = _dsn_from_options(storage_options)
+        pool_options = _pool_options_from_options(storage_options)
+        source = dsn or url or option_source
         if source is None:
             raise ValueError("PostgresDatabaseFileSystem requires a DSN or host config")
         super().__init__(**storage_options)
         self.dsn = source
-        self._rust = _rust.RustPostgresDatabaseFs(source)
+        self.pool_options = pool_options
+        self._rust = _rust.RustPostgresDatabaseFs(source, **pool_options)
 
     def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[dict[str, Any]] | list[str]:
         return self._rust.ls(path, detail)
@@ -124,13 +128,13 @@ def _dsn_from_url(path: str) -> str:
 
 def _dsn_from_options(options: dict[str, Any]) -> str | None:
     host = options.pop("host", None)
-    if host is None:
-        return None
     database = options.pop("database", None) or options.pop("dbname", None)
     user = options.pop("user", None) or options.pop("username", None)
     password = options.pop("password", None)
     port = options.pop("port", None)
     sslmode = options.pop("sslmode", None)
+    if host is None:
+        return None
 
     auth = ""
     if user is not None:
@@ -144,6 +148,42 @@ def _dsn_from_options(options: dict[str, Any]) -> str | None:
     path = f"/{quote(str(database), safe='')}" if database else ""
     query = f"?{urlencode({'sslmode': sslmode})}" if sslmode else ""
     return f"postgresql://{netloc}{path}{query}"
+
+
+def _pool_options_from_options(options: dict[str, Any]) -> dict[str, int]:
+    values: dict[str, int] = {}
+    min_connections = _pop_first(options, "min_connections", "min_pool_size")
+    max_connections = _pop_first(options, "max_connections", "max_pool_size")
+    if min_connections is not None:
+        values["min_connections"] = _non_negative_int("min_connections", min_connections)
+    if max_connections is not None:
+        values["max_connections"] = _positive_int("max_connections", max_connections)
+    min_value = values.get("min_connections")
+    max_value = values.get("max_connections")
+    if min_value is not None and max_value is not None and min_value > max_value:
+        raise ValueError("min_connections cannot exceed max_connections")
+    return values
+
+
+def _pop_first(options: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in options:
+            return options.pop(key)
+    return None
+
+
+def _non_negative_int(name: str, value: Any) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise ValueError(f"{name} must be greater than or equal to 0")
+    return parsed
+
+
+def _positive_int(name: str, value: Any) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise ValueError(f"{name} must be greater than 0")
+    return parsed
 
 
 fsspec.register_implementation("db+postgresql", PostgresDatabaseFileSystem, clobber=True)

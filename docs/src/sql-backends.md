@@ -52,6 +52,25 @@ mysql = fsspec.filesystem(
 )
 ```
 
+Pool sizing can be set for both networked backends with `min_connections` and
+`max_connections`:
+
+```python
+pg = fsspec.filesystem(
+    "db+postgresql",
+    dsn="postgresql://user:password@localhost:5432/app",
+    min_connections=1,
+    max_connections=8,
+)
+```
+
+These options also work through fsspec config files. For example, a config section named
+`db+postgresql` or `db+mysql` can provide the same `host`, `user`, `password`,
+`database`, `min_connections`, and `max_connections` keys; explicit constructor
+arguments still win. If `dsn` or `url` is passed together with connection fields such
+as `database` or `user`, the explicit source is used and those connection fields are
+consumed instead of being passed through as generic fsspec storage options.
+
 ## Metadata
 
 PostgreSQL introspection uses `information_schema` plus `pg_catalog` for indexes,
