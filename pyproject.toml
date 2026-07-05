@@ -144,9 +144,9 @@ fail_under = 50
 
 [tool.hatch.build]
 artifacts = [
-    "project/*.dll",
-    "project/*.dylib",
-    "project/*.so",
+    "fsspec_db/*.dll",
+    "fsspec_db/*.dylib",
+    "fsspec_db/*.so",
 ]
 
 [tool.hatch.build.sources]
