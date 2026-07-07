@@ -58,6 +58,9 @@ then encodes the result based on the path extension:
 `fs.query(sql, params=None)` is intentionally separate from path reads. It accepts raw SQL,
 binds parameters, and returns a `pyarrow.Table`.
 
+`open(path, "rb")` returns a Rust-backed file object with chunked `read(size)`, `seek`,
+and `tell`. `cat_file()` still buffers the full encoded result.
+
 ## Writes
 
 Writes decode incoming Arrow-compatible bytes and call `Database.insert()`:
@@ -70,6 +73,12 @@ Writes decode incoming Arrow-compatible bytes and call `Database.insert()`:
 | `pipe_file(path, bytes, mode="append")` | append                              |
 | `put_file(local, path)`                 | truncate by default                 |
 | `put_file(local, path, mode="append")`  | append                              |
+
+`open(path, "wb")` and `open(path, "ab")` return Rust-backed write handles. Data is
+committed when the file closes, and context-manager exits discard the write if an exception
+is raised. Unclosed write handles are discarded rather than committed during garbage
+collection. `put_file()` copies local bytes into the same Rust write path in chunks. The
+current codecs still decode the completed byte stream at commit time.
 
 DDL writes are deliberately not part of the early surface. Creating or dropping tables will
 be a guarded later feature.

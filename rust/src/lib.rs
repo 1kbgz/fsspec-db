@@ -19,7 +19,7 @@ pub use database::{
 };
 pub use error::{DbError, Result};
 pub use fs::DatabaseFs;
-pub use fsspec_rs::{FileInfo, FileSystem, FileType, FsError, OpenMode};
+pub use fsspec_rs::{FileInfo, FileSystem, FileType, FsError, FsFile, OpenMode};
 pub use mysql::MySqlDatabase;
 pub use path::{DataFormat, DbFacet, DbPath, DbPathKind};
 pub use postgres::PostgresDatabase;

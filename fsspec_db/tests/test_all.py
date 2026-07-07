@@ -1,3 +1,4 @@
+import gc
 import io
 import sqlite3
 
@@ -112,6 +113,30 @@ def test_python_filesystem_reads_arrow():
     assert db.queries == ['SELECT * FROM "main"."users"']
 
 
+def test_python_filesystem_open_read_supports_chunks_and_seek():
+    db = MockDatabase()
+    fs = AbstractDatabaseFileSystem(db)
+
+    with fs.open("/main/users.arrow", "rb") as file:
+        assert file.readable()
+        assert file.seekable()
+        assert not file.writable()
+        first = file.read(8)
+        assert file.tell() == 8
+        rest = file.read()
+        assert file.read() == b""
+        assert file.size() == len(first) + len(rest)
+        file.seek(0)
+        data = file.read()
+    assert file.closed
+    assert data == first + rest
+
+    with ipc.open_stream(data) as reader:
+        table = reader.read_all()
+    assert table.num_rows == 2
+    assert db.queries == ['SELECT * FROM "main"."users"']
+
+
 def test_python_filesystem_reads_parquet():
     fs = AbstractDatabaseFileSystem(MockDatabase())
 
@@ -180,10 +205,53 @@ def test_python_database_rejects_unknown_dialect():
 def test_python_filesystem_write_uses_bridge():
     db = MockDatabase()
     fs = AbstractDatabaseFileSystem(db)
+    data = arrow_stream_bytes(pa.table({"id": [3], "name": ["katherine"]}))
 
-    fs.pipe_file("/main/users.arrow", arrow_stream_bytes(pa.table({"id": [3], "name": ["katherine"]})))
+    with fs.open("/main/users.arrow", "wb") as file:
+        assert file.writable()
+        assert not file.readable()
+        file.write(data[:8])
+        file.write(data[8:])
+        assert db.queries == []
 
     assert db.queries == ["insert:main.users:truncate:1"]
+
+    fs.pipe_file("/main/users.arrow", data, mode="append")
+
+    assert db.queries == ["insert:main.users:truncate:1", "insert:main.users:append:1"]
+
+
+def test_python_filesystem_write_discards_on_context_error():
+    db = MockDatabase()
+    fs = AbstractDatabaseFileSystem(db)
+    data = arrow_stream_bytes(pa.table({"id": [3], "name": ["katherine"]}))
+
+    with pytest.raises(RuntimeError):
+        with fs.open("/main/users.arrow", "wb") as file:
+            file.write(data)
+            raise RuntimeError("abort")
+
+    assert db.queries == []
+
+
+def test_python_filesystem_write_does_not_commit_on_gc():
+    db = MockDatabase()
+    fs = AbstractDatabaseFileSystem(db)
+    data = arrow_stream_bytes(pa.table({"id": [3], "name": ["katherine"]}))
+
+    file = fs.open("/main/users.arrow", "wb")
+    file.write(data)
+    del file
+    gc.collect()
+
+    assert db.queries == []
+
+
+def test_python_filesystem_rejects_write_autocommit_false():
+    fs = AbstractDatabaseFileSystem(MockDatabase())
+
+    with pytest.raises(NotImplementedError, match="autocommit=False"):
+        fs.open("/main/users.arrow", "wb", autocommit=False)
 
 
 def test_python_filesystem_rejects_exclusive_create_at_open():
@@ -277,6 +345,17 @@ def test_sqlite_filesystem_registered_and_reads(tmp_path):
     with ipc.open_stream(fs.cat_file("/main/users.arrow")) as reader:
         table = reader.read_all()
     assert table.num_rows == 2
+
+    with fs.open("/main/users.arrow", "rb") as file:
+        first = file.read(12)
+        assert file.tell() == 12
+        rest = file.read()
+        file.seek(0)
+        data = file.read()
+    assert data == first + rest
+    with ipc.open_stream(data) as reader:
+        table = reader.read_all()
+    assert table.column("name").to_pylist() == ["ada", "grace"]
 
     queried = fs.query("SELECT name FROM users WHERE id > ? ORDER BY id", [0])
     assert queried.column("name").to_pylist() == ["ada", "grace"]
@@ -484,6 +563,8 @@ def test_sqlite_filesystem_writes_and_puts(tmp_path):
 
     fs = fsspec.filesystem("db+sqlite", database=str(path))
     with fs.open("/main/users.arrow", "wb") as file:
+        assert file.writable()
+        assert not file.readable()
         file.write(arrow_stream_bytes(pa.table({"name": ["grace"], "score": [2.5]})))
     assert fs.query("SELECT name FROM users ORDER BY id").column("name").to_pylist() == ["grace"]
 
