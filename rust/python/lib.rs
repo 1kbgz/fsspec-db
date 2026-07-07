@@ -6,6 +6,7 @@ mod types;
 #[pymodule]
 fn fsspec_db(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<database::PyDatabaseFs>()?;
+    m.add_class::<database::PyDbFile>()?;
     m.add_class::<database::PySqliteDatabaseFs>()?;
     m.add_class::<database::PyPostgresDatabaseFs>()?;
     m.add_class::<database::PyMySqlDatabaseFs>()?;

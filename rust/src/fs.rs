@@ -2,7 +2,10 @@ use std::fs;
 use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
-use fsspec_rs::{FileInfo, FileSystem, FsError, FsFile, FsResult, OpenMode, OpenOptions};
+use fsspec_rs::{
+    buffered::Uploader, BufferedFile, FileInfo, FileSystem, FsError, FsFile, FsResult, OpenMode,
+    OpenOptions,
+};
 
 use crate::codec::{csv_to_arrow, format_reader, ipc_to_arrow, jsonl_to_arrow, parquet_to_arrow};
 use crate::database::{Database, DbValue, InsertMode};
@@ -17,22 +20,22 @@ use crate::{DbError, Result};
 const PROTOCOLS: &[&str] = &["db"];
 
 pub struct DatabaseFs<D> {
-    db: D,
+    db: Arc<D>,
 }
 
 impl<D> DatabaseFs<D> {
     pub fn new(db: D) -> Self {
-        Self { db }
+        Self { db: Arc::new(db) }
     }
 
     pub fn database(&self) -> &D {
-        &self.db
+        self.db.as_ref()
     }
 }
 
 impl<D> FileSystem for DatabaseFs<D>
 where
-    D: Database,
+    D: Database + 'static,
 {
     fn protocol(&self) -> &[&str] {
         PROTOCOLS
@@ -62,9 +65,10 @@ where
         &self,
         path: &str,
         mode: OpenMode,
-        _opts: Option<OpenOptions>,
+        opts: Option<OpenOptions>,
     ) -> FsResult<Box<dyn FsFile>> {
-        self.open_db(path, mode).map_err(FsError::from)
+        let opts = opts.unwrap_or_default();
+        self.open_db(path, mode, &opts).map_err(FsError::from)
     }
 
     fn info(&self, path: &str) -> FsResult<FileInfo> {
@@ -93,39 +97,10 @@ where
 
 impl<D> DatabaseFs<D>
 where
-    D: Database,
+    D: Database + 'static,
 {
     pub fn write_bytes(&self, path: &str, data: &[u8], mode: InsertMode) -> Result<u64> {
-        let parsed = DbPath::parse(path)?;
-        let DbPathKind::RelationData { format } = parsed.kind.clone() else {
-            return Err(DbError::InvalidArgument(format!(
-                "database writes require a relation data path: {path}"
-            )));
-        };
-        if format == DataFormat::Sql {
-            return Err(DbError::NotSupported(
-                "database DDL writes are not supported yet".to_string(),
-            ));
-        }
-
-        let (schema, relation) = required_relation(&parsed)?;
-        let relation_info = self.db.relation_info(schema, relation)?;
-        if relation_info.kind != RelationKind::Table {
-            return Err(DbError::NotSupported(format!(
-                "database writes require a table path: {path}"
-            )));
-        }
-
-        let reader = match format {
-            DataFormat::Parquet => parquet_to_arrow(data.to_vec())?,
-            DataFormat::Arrow => ipc_to_arrow(data.to_vec())?,
-            DataFormat::Csv => csv_to_arrow(data.to_vec(), self.arrow_schema(schema, relation)?)?,
-            DataFormat::Jsonl => {
-                jsonl_to_arrow(data.to_vec(), self.arrow_schema(schema, relation)?)?
-            }
-            DataFormat::Sql => unreachable!(),
-        };
-        self.db.insert(schema, relation, reader, mode)
+        write_bytes_to_database(self.db.as_ref(), path, data, mode)
     }
 
     fn ls_db(&self, path: &str) -> Result<Vec<FileInfo>> {
@@ -216,12 +191,14 @@ where
         }
     }
 
-    fn open_db(&self, path: &str, mode: OpenMode) -> Result<Box<dyn FsFile>> {
-        if mode != OpenMode::Read {
-            return Err(DbError::NotSupported(format!(
-                "database write-open is not supported yet: {}",
-                mode.as_str()
-            )));
+    fn open_db(&self, path: &str, mode: OpenMode, opts: &OpenOptions) -> Result<Box<dyn FsFile>> {
+        if matches!(mode, OpenMode::Write | OpenMode::Append) {
+            return self.open_write_db(path, mode, opts);
+        }
+        if mode == OpenMode::Exclusive {
+            return Err(DbError::NotSupported(
+                "exclusive create is not supported for database relation writes".to_string(),
+            ));
         }
 
         let parsed = DbPath::parse(path)?;
@@ -235,7 +212,7 @@ where
                         schema,
                         relation,
                         &relation_info,
-                        &self.db,
+                        self.db.as_ref(),
                     )?
                     .into_bytes();
                     let mut info = relation_data_file(
@@ -276,6 +253,56 @@ where
                 "path is not a readable database file: {path}"
             ))),
         }
+    }
+
+    fn open_write_db(
+        &self,
+        path: &str,
+        mode: OpenMode,
+        opts: &OpenOptions,
+    ) -> Result<Box<dyn FsFile>> {
+        if !opts.autocommit {
+            return Err(DbError::NotSupported(
+                "autocommit=False is not supported for database relation writes".to_string(),
+            ));
+        }
+
+        let parsed = DbPath::parse(path)?;
+        let DbPathKind::RelationData { format } = parsed.kind.clone() else {
+            return Err(DbError::InvalidArgument(format!(
+                "database writes require a relation data path: {path}"
+            )));
+        };
+        if format == DataFormat::Sql {
+            return Err(DbError::NotSupported(
+                "database DDL writes are not supported yet".to_string(),
+            ));
+        }
+
+        let (schema, relation) = required_relation(&parsed)?;
+        let relation_info = self.db.relation_info(schema, relation)?;
+        if relation_info.kind != RelationKind::Table {
+            return Err(DbError::NotSupported(format!(
+                "database writes require a table path: {path}"
+            )));
+        }
+
+        let db = Arc::clone(&self.db);
+        let write_path = path.to_string();
+        let file_path = write_path.clone();
+        let insert_mode = match mode {
+            OpenMode::Write => InsertMode::Truncate,
+            OpenMode::Append => InsertMode::Append,
+            _ => unreachable!(),
+        };
+        let uploader: Uploader = Box::new(move |data| {
+            write_bytes_to_database(db.as_ref(), &write_path, data, insert_mode.clone())
+                .map(|_| ())
+                .map_err(FsError::from)
+        });
+        Ok(Box::new(BufferedFile::new_write(
+            file_path, uploader, false,
+        )))
     }
 
     fn ensure_schema(&self, name: &str) -> Result<SchemaInfo> {
@@ -343,22 +370,57 @@ where
             .find(|entry| entry.name.rsplit('/').next() == Some(item))
             .ok_or_else(|| DbError::NotFound(format!("database metadata item not found: {item}")))
     }
+}
 
-    fn arrow_schema(&self, schema: &str, relation: &str) -> Result<SchemaRef> {
-        let fields = self
-            .db
-            .list_columns(schema, relation)?
-            .into_iter()
-            .map(|column| {
-                Field::new(
-                    column.name,
-                    arrow_type_for_database_type(&column.data_type),
-                    column.nullable,
-                )
-            })
-            .collect::<Vec<_>>();
-        Ok(Arc::new(Schema::new(fields)))
+fn write_bytes_to_database<D: Database>(
+    db: &D,
+    path: &str,
+    data: &[u8],
+    mode: InsertMode,
+) -> Result<u64> {
+    let parsed = DbPath::parse(path)?;
+    let DbPathKind::RelationData { format } = parsed.kind.clone() else {
+        return Err(DbError::InvalidArgument(format!(
+            "database writes require a relation data path: {path}"
+        )));
+    };
+    if format == DataFormat::Sql {
+        return Err(DbError::NotSupported(
+            "database DDL writes are not supported yet".to_string(),
+        ));
     }
+
+    let (schema, relation) = required_relation(&parsed)?;
+    let relation_info = db.relation_info(schema, relation)?;
+    if relation_info.kind != RelationKind::Table {
+        return Err(DbError::NotSupported(format!(
+            "database writes require a table path: {path}"
+        )));
+    }
+
+    let reader = match format {
+        DataFormat::Parquet => parquet_to_arrow(data.to_vec())?,
+        DataFormat::Arrow => ipc_to_arrow(data.to_vec())?,
+        DataFormat::Csv => csv_to_arrow(data.to_vec(), arrow_schema(db, schema, relation)?)?,
+        DataFormat::Jsonl => jsonl_to_arrow(data.to_vec(), arrow_schema(db, schema, relation)?)?,
+        DataFormat::Sql => unreachable!(),
+    };
+    db.insert(schema, relation, reader, mode)
+}
+
+fn arrow_schema<D: Database>(db: &D, schema: &str, relation: &str) -> Result<SchemaRef> {
+    let fields = db
+        .list_columns(schema, relation)?
+        .into_iter()
+        .map(|column| {
+            Field::new(
+                column.name,
+                arrow_type_for_database_type(&column.data_type),
+                column.nullable,
+            )
+        })
+        .collect::<Vec<_>>();
+    Ok(Arc::new(Schema::new(fields)))
 }
 
 fn required_schema(path: &DbPath) -> Result<&str> {
@@ -609,13 +671,13 @@ fn ddl_sql<D: Database>(
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
+    use std::io::{Read, Write};
     use std::sync::{Arc, Mutex};
 
     use arrow::array::{ArrayRef, Int64Array, StringArray};
     use arrow::datatypes::{DataType, Field, Schema};
     use arrow::record_batch::RecordBatch;
-    use fsspec_rs::{FileSystem, FileType};
+    use fsspec_rs::{FileSystem, FileType, OpenOptions};
 
     use super::*;
     use crate::codec::{arrow_to_ipc, rows_to_arrow};
@@ -944,14 +1006,14 @@ mod tests {
     }
 
     #[test]
-    fn rejects_mutating_primitives_for_now() {
+    fn rejects_unimplemented_mutating_primitives() {
         let fs = DatabaseFs::new(MockDatabase::new());
         assert!(matches!(
             fs.rm_file("/main/users.arrow"),
             Err(FsError::NotSupported(_))
         ));
         assert!(matches!(
-            fs.open("/main/users.arrow", OpenMode::Write, None),
+            fs.open("/main/users.arrow", OpenMode::Exclusive, None),
             Err(FsError::NotSupported(_))
         ));
     }
@@ -976,5 +1038,69 @@ mod tests {
                 2
             )
         );
+    }
+
+    #[test]
+    fn write_open_commits_relation_data_to_database_insert() {
+        let fs = DatabaseFs::new(MockDatabase::new());
+        let data = arrow_to_ipc(rows_to_arrow(vec![MockDatabase::batch()]).unwrap()).unwrap();
+
+        let mut file = fs.open("/main/users.arrow", OpenMode::Write, None).unwrap();
+        file.write_all(&data).unwrap();
+        assert!(fs.database().inserts.lock().unwrap().is_empty());
+        file.commit().unwrap();
+
+        let inserts = fs.database().inserts.lock().unwrap();
+        assert_eq!(
+            inserts[0],
+            (
+                "main".to_string(),
+                "users".to_string(),
+                InsertMode::Truncate,
+                2
+            )
+        );
+    }
+
+    #[test]
+    fn write_open_drop_does_not_commit_relation_data() {
+        let fs = DatabaseFs::new(MockDatabase::new());
+        let data = arrow_to_ipc(rows_to_arrow(vec![MockDatabase::batch()]).unwrap()).unwrap();
+
+        {
+            let mut file = fs.open("/main/users.arrow", OpenMode::Write, None).unwrap();
+            file.write_all(&data).unwrap();
+        }
+
+        assert!(fs.database().inserts.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn write_open_rejects_autocommit_false() {
+        let fs = DatabaseFs::new(MockDatabase::new());
+        let opts = OpenOptions {
+            autocommit: false,
+            ..Default::default()
+        };
+
+        assert!(matches!(
+            fs.open("/main/users.arrow", OpenMode::Write, Some(opts)),
+            Err(FsError::NotSupported(_))
+        ));
+    }
+
+    #[test]
+    fn append_open_uses_append_insert_mode() {
+        let fs = DatabaseFs::new(MockDatabase::new());
+        let data = arrow_to_ipc(rows_to_arrow(vec![MockDatabase::batch()]).unwrap()).unwrap();
+
+        let mut file = fs
+            .open("/main/users.arrow", OpenMode::Append, None)
+            .unwrap();
+        file.write_all(&data).unwrap();
+        file.commit().unwrap();
+
+        let inserts = fs.database().inserts.lock().unwrap();
+        assert_eq!(inserts[0].2, InsertMode::Append);
     }
 }

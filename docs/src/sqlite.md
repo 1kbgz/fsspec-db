@@ -50,6 +50,9 @@ import pyarrow.ipc as ipc
 with ipc.open_stream(fs.cat_file("/main/users.arrow")) as reader:
     table = reader.read_all()
 
+with fs.open("/main/users.arrow", "rb") as file:
+    head = file.read(1024)
+
 table = fs.query("SELECT id, name FROM users WHERE id > ?", [0])
 ```
 
@@ -77,7 +80,8 @@ with fs.open("/main/users.arrow", "ab") as file:
 ```
 
 `"ab"` appends rows. `"wb"` truncates the table with `DELETE FROM` inside the same
-transaction, then inserts rows.
+transaction, then inserts rows. The Rust-backed write handle commits when it closes;
+unclosed handles are discarded.
 
 ## Writing Parquet
 

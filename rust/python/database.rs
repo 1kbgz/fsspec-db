@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::io::{self, SeekFrom};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use pyo3::exceptions::{
     PyFileExistsError, PyFileNotFoundError, PyIsADirectoryError, PyNotADirectoryError, PyOSError,
@@ -9,12 +10,199 @@ use pyo3::types::{PyBool, PyBytes, PyDict, PyList};
 
 use fsspec_db::{
     arrow_to_ipc, ipc_to_arrow, ColumnInfo, ConstraintInfo, ConstraintKind, Database, DatabaseFs,
-    DbError, DbValue, Dialect, FileSystem, FsError, IndexInfo, InsertMode, MySqlDatabase,
-    DbPoolOptions, PostgresDatabase, RecordBatchStream, RelationInfo, RelationKind, SchemaInfo,
-    SqliteDatabase,
+    DbError, DbPoolOptions, DbValue, Dialect, FileSystem, FsError, FsFile, IndexInfo, InsertMode,
+    MySqlDatabase, OpenMode, PostgresDatabase, RecordBatchStream, RelationInfo, RelationKind,
+    SchemaInfo, SqliteDatabase,
 };
 
 use crate::types::file_info_to_dict;
+
+#[pyclass(name = "RustDbFile", skip_from_py_object)]
+pub struct PyDbFile {
+    inner: Mutex<Option<Box<dyn FsFile>>>,
+    path: String,
+    mode: OpenMode,
+}
+
+impl PyDbFile {
+    fn new(path: &str, mode: OpenMode, file: Box<dyn FsFile>) -> Self {
+        Self {
+            inner: Mutex::new(Some(file)),
+            path: path.to_string(),
+            mode,
+        }
+    }
+
+    fn lock_inner(&self) -> PyResult<MutexGuard<'_, Option<Box<dyn FsFile>>>> {
+        self.inner
+            .lock()
+            .map_err(|_| PyOSError::new_err("database file lock is poisoned"))
+    }
+}
+
+#[pymethods]
+impl PyDbFile {
+    #[pyo3(signature = (size = -1))]
+    fn read(&self, size: i64) -> PyResult<Vec<u8>> {
+        let mut guard = self.lock_inner()?;
+        let file = open_file_mut(&mut guard)?;
+        if size < 0 {
+            let mut data = Vec::new();
+            file.read_to_end(&mut data).map_err(io_error_to_pyerr)?;
+            Ok(data)
+        } else {
+            let mut data = vec![0; size as usize];
+            let count = file.read(&mut data).map_err(io_error_to_pyerr)?;
+            data.truncate(count);
+            Ok(data)
+        }
+    }
+
+    fn write(&self, data: &[u8]) -> PyResult<usize> {
+        let mut guard = self.lock_inner()?;
+        let file = open_file_mut(&mut guard)?;
+        file.write(data).map_err(io_error_to_pyerr)
+    }
+
+    #[pyo3(signature = (offset, whence = 0))]
+    fn seek(&self, offset: i64, whence: u8) -> PyResult<u64> {
+        let mut guard = self.lock_inner()?;
+        let file = open_file_mut(&mut guard)?;
+        let position = match whence {
+            0 => {
+                if offset < 0 {
+                    return Err(PyValueError::new_err("negative seek position"));
+                }
+                SeekFrom::Start(offset as u64)
+            }
+            1 => SeekFrom::Current(offset),
+            2 => SeekFrom::End(offset),
+            _ => return Err(PyValueError::new_err("whence must be 0, 1, or 2")),
+        };
+        file.seek(position).map_err(io_error_to_pyerr)
+    }
+
+    fn tell(&self) -> PyResult<u64> {
+        self.seek(0, 1)
+    }
+
+    fn flush(&self) -> PyResult<()> {
+        let mut guard = self.lock_inner()?;
+        let file = open_file_mut(&mut guard)?;
+        file.flush().map_err(io_error_to_pyerr)
+    }
+
+    fn close(&self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| {
+            let mut guard = self.lock_inner()?;
+            if let Some(file) = guard.as_mut() {
+                file.commit().map_err(fs_error_to_pyerr)?;
+            }
+            *guard = None;
+            Ok(())
+        })
+    }
+
+    fn discard(&self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| {
+            let mut guard = self.lock_inner()?;
+            if let Some(file) = guard.as_mut() {
+                file.discard().map_err(fs_error_to_pyerr)?;
+            }
+            *guard = None;
+            Ok(())
+        })
+    }
+
+    #[getter]
+    fn closed(&self) -> PyResult<bool> {
+        Ok(self.lock_inner()?.is_none())
+    }
+
+    fn readable(&self) -> PyResult<bool> {
+        Ok(self.lock_inner()?.is_some() && self.mode == OpenMode::Read)
+    }
+
+    fn writable(&self) -> PyResult<bool> {
+        Ok(self.lock_inner()?.is_some()
+            && matches!(
+                self.mode,
+                OpenMode::Write | OpenMode::Append | OpenMode::Exclusive
+            ))
+    }
+
+    fn seekable(&self) -> PyResult<bool> {
+        Ok(self.lock_inner()?.is_some())
+    }
+
+    fn size(&self) -> PyResult<Option<u64>> {
+        let guard = self.lock_inner()?;
+        let file = open_file_ref(&guard)?;
+        file.size().map_err(fs_error_to_pyerr)
+    }
+
+    fn info<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let guard = self.lock_inner()?;
+        let file = open_file_ref(&guard)?;
+        let info = file.info().map_err(fs_error_to_pyerr)?;
+        file_info_to_dict(py, &info)
+    }
+
+    fn __enter__(slf: Py<Self>) -> Py<Self> {
+        slf
+    }
+
+    fn __exit__(
+        &self,
+        py: Python<'_>,
+        exc_type: Option<&Bound<'_, PyAny>>,
+        _exc_val: Option<&Bound<'_, PyAny>>,
+        _exc_tb: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<bool> {
+        if exc_type.is_some() {
+            self.discard(py)?;
+        } else {
+            self.close(py)?;
+        }
+        Ok(false)
+    }
+
+    fn __repr__(&self) -> String {
+        let state = match self.inner.lock() {
+            Ok(guard) if guard.is_none() => "closed",
+            Ok(_) => "open",
+            Err(_) => "poisoned",
+        };
+        format!("RustDbFile('{}', {state})", self.path)
+    }
+}
+
+fn open_file_mut(guard: &mut Option<Box<dyn FsFile>>) -> PyResult<&mut (dyn FsFile + 'static)> {
+    guard
+        .as_deref_mut()
+        .ok_or_else(|| PyValueError::new_err("file is closed"))
+}
+
+fn open_file_ref(guard: &Option<Box<dyn FsFile>>) -> PyResult<&dyn FsFile> {
+    guard
+        .as_deref()
+        .ok_or_else(|| PyValueError::new_err("file is closed"))
+}
+
+fn io_error_to_pyerr(err: io::Error) -> PyErr {
+    match err.kind() {
+        io::ErrorKind::NotFound => PyFileNotFoundError::new_err(err.to_string()),
+        io::ErrorKind::PermissionDenied => PyPermissionError::new_err(err.to_string()),
+        io::ErrorKind::AlreadyExists => PyFileExistsError::new_err(err.to_string()),
+        io::ErrorKind::NotADirectory => PyNotADirectoryError::new_err(err.to_string()),
+        io::ErrorKind::IsADirectory => PyIsADirectoryError::new_err(err.to_string()),
+        io::ErrorKind::InvalidInput | io::ErrorKind::InvalidData => {
+            PyValueError::new_err(err.to_string())
+        }
+        io::ErrorKind::Unsupported => PyOSError::new_err(format!("not supported: {err}")),
+        _ => PyOSError::new_err(err.to_string()),
+    }
+}
 
 #[derive(Clone)]
 struct PyDatabase {
@@ -198,6 +386,16 @@ impl PyDatabaseFs {
             .map_err(fs_error_to_pyerr)
     }
 
+    #[pyo3(signature = (path, mode = "rb"))]
+    fn open_file(&self, path: &str, mode: &str) -> PyResult<PyDbFile> {
+        let open_mode = parse_open_mode(mode)?;
+        let file = self
+            .inner
+            .open(path, open_mode.clone(), None)
+            .map_err(fs_error_to_pyerr)?;
+        Ok(PyDbFile::new(path, open_mode, file))
+    }
+
     #[pyo3(signature = (sql, params = None))]
     fn query_arrow(&self, sql: &str, params: Option<&Bound<'_, PyAny>>) -> PyResult<Vec<u8>> {
         let values = match params {
@@ -276,6 +474,15 @@ impl PySqliteDatabaseFs {
     ) -> PyResult<Vec<u8>> {
         py.detach(|| self.inner.cat_file(path, start, end))
             .map_err(fs_error_to_pyerr)
+    }
+
+    #[pyo3(signature = (path, mode = "rb"))]
+    fn open_file(&self, py: Python<'_>, path: &str, mode: &str) -> PyResult<PyDbFile> {
+        let open_mode = parse_open_mode(mode)?;
+        let file = py
+            .detach(|| self.inner.open(path, open_mode.clone(), None))
+            .map_err(fs_error_to_pyerr)?;
+        Ok(PyDbFile::new(path, open_mode, file))
     }
 
     #[pyo3(signature = (sql, params = None))]
@@ -379,6 +586,15 @@ impl PyPostgresDatabaseFs {
             .map_err(fs_error_to_pyerr)
     }
 
+    #[pyo3(signature = (path, mode = "rb"))]
+    fn open_file(&self, py: Python<'_>, path: &str, mode: &str) -> PyResult<PyDbFile> {
+        let open_mode = parse_open_mode(mode)?;
+        let file = py
+            .detach(|| self.inner.open(path, open_mode.clone(), None))
+            .map_err(fs_error_to_pyerr)?;
+        Ok(PyDbFile::new(path, open_mode, file))
+    }
+
     #[pyo3(signature = (sql, params = None))]
     fn query_arrow(
         &self,
@@ -480,6 +696,15 @@ impl PyMySqlDatabaseFs {
             .map_err(fs_error_to_pyerr)
     }
 
+    #[pyo3(signature = (path, mode = "rb"))]
+    fn open_file(&self, py: Python<'_>, path: &str, mode: &str) -> PyResult<PyDbFile> {
+        let open_mode = parse_open_mode(mode)?;
+        let file = py
+            .detach(|| self.inner.open(path, open_mode.clone(), None))
+            .map_err(fs_error_to_pyerr)?;
+        Ok(PyDbFile::new(path, open_mode, file))
+    }
+
     #[pyo3(signature = (sql, params = None))]
     fn query_arrow(
         &self,
@@ -523,6 +748,11 @@ fn parse_insert_mode(mode: &str) -> PyResult<InsertMode> {
             "unsupported database write mode: {other}"
         ))),
     }
+}
+
+fn parse_open_mode(mode: &str) -> PyResult<OpenMode> {
+    OpenMode::from_str_mode(mode)
+        .ok_or_else(|| PyValueError::new_err(format!("unsupported database file mode: {mode}")))
 }
 
 fn insert_mode_as_str(mode: &InsertMode) -> &'static str {

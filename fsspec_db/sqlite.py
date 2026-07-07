@@ -6,7 +6,7 @@ from typing import Any
 
 import fsspec
 
-from .spec import DBFile, _binary_mode
+from .spec import _binary_mode, _copy_local_to_rust_file, _validate_open_mode
 
 _rust = import_module(".fsspec_db", __package__)
 
@@ -81,8 +81,7 @@ class SQLiteDatabaseFileSystem(fsspec.AbstractFileSystem):
     def put_file(self, lpath: str, rpath: str, callback: Any = None, mode: str = "overwrite", **kwargs: Any) -> None:
         if mode == "create" and self.exists(rpath):
             raise FileExistsError(rpath)
-        with open(lpath, "rb") as file:
-            self._write_file(rpath, file.read(), "ab" if mode == "append" else "wb")
+        _copy_local_to_rust_file(self._rust, lpath, rpath, "ab" if mode == "append" else "wb")
 
     def _open(
         self,
@@ -92,22 +91,9 @@ class SQLiteDatabaseFileSystem(fsspec.AbstractFileSystem):
         autocommit: bool = True,
         cache_options: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> io.BytesIO | DBFile:
-        if mode in {"xb", "x"}:
-            raise NotImplementedError("exclusive create is not supported for database relation writes")
-        if mode in {"wb", "w", "ab", "a"}:
-            return DBFile(
-                self,
-                path,
-                mode=_binary_mode(mode),
-                block_size=block_size,
-                autocommit=autocommit,
-                cache_options=cache_options,
-                **kwargs,
-            )
-        if mode not in {"rb", "r"}:
-            raise NotImplementedError(f"database file mode is not supported: {mode}")
-        return io.BytesIO(self._rust.cat_file(path, None, None))
+    ) -> Any:
+        _validate_open_mode(mode, autocommit)
+        return self._rust.open_file(path, _binary_mode(mode))
 
 
 fsspec.register_implementation("db+sqlite", SQLiteDatabaseFileSystem, clobber=True)
