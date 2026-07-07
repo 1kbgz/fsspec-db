@@ -287,6 +287,9 @@ Schema listings do not count every table.</p>
 <span class="k">with</span> <span class="n">ipc</span><span class="o">.</span><span class="n">open_stream</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
     <span class="n">table</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
 
+<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+    <span class="n">head</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+
 <span class="n">table</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;SELECT id, name FROM users WHERE id &gt; ?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 </pre></div>
 </div>
@@ -313,7 +316,8 @@ incoming rows. Use <code class="docutils literal notranslate"><span class="pre">
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">&quot;ab&quot;</span></code> appends rows. <code class="docutils literal notranslate"><span class="pre">&quot;wb&quot;</span></code> truncates the table with <code class="docutils literal notranslate"><span class="pre">DELETE</span> <span class="pre">FROM</span></code> inside the same
-transaction, then inserts rows.</p>
+transaction, then inserts rows. The Rust-backed write handle commits when it closes;
+unclosed handles are discarded.</p>
 </section>
 <section id="writing-parquet">
 <h2>Writing Parquet<a class="headerlink" href="#writing-parquet" title="Link to this heading">¶</a></h2>

@@ -243,7 +243,6 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">fsspec.spec</span><span class="w"> </span><span class="kn">import</span> <span class="n">AbstractBufferedFile</span>
 
 <span class="n">_rust</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s2">&quot;.fsspec_db&quot;</span><span class="p">,</span> <span class="n">__package__</span><span class="p">)</span>
 
@@ -252,25 +251,11 @@
 <span class="n">ColumnInfo</span> <span class="o">=</span> <span class="n">_rust</span><span class="o">.</span><span class="n">ColumnInfo</span>
 <span class="n">IndexInfo</span> <span class="o">=</span> <span class="n">_rust</span><span class="o">.</span><span class="n">IndexInfo</span>
 <span class="n">ConstraintInfo</span> <span class="o">=</span> <span class="n">_rust</span><span class="o">.</span><span class="n">ConstraintInfo</span>
+<span class="n">DBFile</span> <span class="o">=</span> <span class="n">_rust</span><span class="o">.</span><span class="n">RustDbFile</span>
 
-
-<div class="viewcode-block" id="DBFile">
-<a class="viewcode-back" href="../../docs/src/api.html#fsspec_db.DBFile">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">DBFile</span><span class="p">(</span><span class="n">AbstractBufferedFile</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Buffered fsspec file used for database relation writes.&quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_initiate_upload</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_upload_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">final</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">final</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">fs</span><span class="o">.</span><span class="n">_write_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_chunks</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">True</span></div>
-
+<span class="n">_DEFAULT_COPY_BLOCK_SIZE</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+<span class="n">_SUPPORTED_OPEN_MODES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;rb&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">}</span>
+<span class="n">_WRITE_OPEN_MODES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;wb&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">}</span>
 
 
 <div class="viewcode-block" id="AbstractDatabase">
@@ -382,8 +367,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">put_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">rpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">callback</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;overwrite&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;create&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">rpath</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="n">rpath</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">lpath</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_write_file</span><span class="p">(</span><span class="n">rpath</span><span class="p">,</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="s2">&quot;ab&quot;</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;append&quot;</span> <span class="k">else</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span></div>
+        <span class="n">_copy_local_to_rust_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rust</span><span class="p">,</span> <span class="n">lpath</span><span class="p">,</span> <span class="n">rpath</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;append&quot;</span> <span class="k">else</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_open</span><span class="p">(</span>
@@ -394,27 +378,34 @@
         <span class="n">autocommit</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">cache_options</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span> <span class="o">|</span> <span class="n">DBFile</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;xb&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">}:</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;exclusive create is not supported for database relation writes&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;wb&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">}:</span>
-            <span class="k">return</span> <span class="n">DBFile</span><span class="p">(</span>
-                <span class="bp">self</span><span class="p">,</span>
-                <span class="n">path</span><span class="p">,</span>
-                <span class="n">mode</span><span class="o">=</span><span class="n">_binary_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">),</span>
-                <span class="n">block_size</span><span class="o">=</span><span class="n">block_size</span><span class="p">,</span>
-                <span class="n">autocommit</span><span class="o">=</span><span class="n">autocommit</span><span class="p">,</span>
-                <span class="n">cache_options</span><span class="o">=</span><span class="n">cache_options</span><span class="p">,</span>
-                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
-            <span class="p">)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;rb&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">}:</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;database file mode is not supported: </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rust</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span></div>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="n">_validate_open_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">autocommit</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">_binary_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">))</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_copy_local_to_rust_file</span><span class="p">(</span><span class="n">rust_fs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">lpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">rpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">lpath</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">source</span><span class="p">,</span> <span class="n">rust_fs</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">rpath</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span> <span class="k">as</span> <span class="n">target</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">_DEFAULT_COPY_BLOCK_SIZE</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">target</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_open_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">autocommit</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;xb&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">}:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;exclusive create is not supported for database relation writes&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_SUPPORTED_OPEN_MODES</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;database file mode is not supported: </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">autocommit</span> <span class="ow">and</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">_WRITE_OPEN_MODES</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;autocommit=False is not supported for database relation writes&quot;</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_binary_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
     <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="s2">&quot;rb&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;rb&quot;</span><span class="p">:</span> <span class="s2">&quot;rb&quot;</span><span class="p">,</span>
         <span class="s2">&quot;w&quot;</span><span class="p">:</span> <span class="s2">&quot;wb&quot;</span><span class="p">,</span>
         <span class="s2">&quot;wb&quot;</span><span class="p">:</span> <span class="s2">&quot;wb&quot;</span><span class="p">,</span>
         <span class="s2">&quot;a&quot;</span><span class="p">:</span> <span class="s2">&quot;ab&quot;</span><span class="p">,</span>

@@ -359,13 +359,6 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 </dd></dl>
 
 <dl class="py class">
-<dt class="sig sig-object py" id="fsspec_db.DBFile">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fsspec_db.</span></span><span class="sig-name descname"><span class="pre">DBFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'rb'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">autocommit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'readahead'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/fsspec_db/spec.html#DBFile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.DBFile" title="Link to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractBufferedFile</span></code></p>
-<p>Buffered fsspec file used for database relation writes.</p>
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="fsspec_db.MySQLDatabaseFileSystem">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fsspec_db.</span></span><span class="sig-name descname"><span class="pre">MySQLDatabaseFileSystem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/fsspec_db/mysql.html#MySQLDatabaseFileSystem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.MySQLDatabaseFileSystem" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractFileSystem</span></code></p>
@@ -784,13 +777,6 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 
 </dd></dl>
 
-<dl class="py class">
-<dt class="sig sig-object py" id="fsspec_db.spec.DBFile">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fsspec_db.spec.</span></span><span class="sig-name descname"><span class="pre">DBFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'rb'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'default'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">autocommit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'readahead'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/fsspec_db/spec.html#DBFile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.spec.DBFile" title="Link to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractBufferedFile</span></code></p>
-<p>Buffered fsspec file used for database relation writes.</p>
-</dd></dl>
-
 </section>
 <section id="module-fsspec_db.sqlite">
 <span id="sqlite-backend"></span><h2>SQLite Backend<a class="headerlink" href="#module-fsspec_db.sqlite" title="Link to this heading">¶</a></h2>
@@ -1168,7 +1154,6 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <li><a class="reference internal" href="#fsspec_db.AbstractDatabaseFileSystem.put_file"><code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem.put_file()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#fsspec_db.DBFile"><code class="docutils literal notranslate"><span class="pre">DBFile</span></code></a></li>
 <li><a class="reference internal" href="#fsspec_db.MySQLDatabaseFileSystem"><code class="docutils literal notranslate"><span class="pre">MySQLDatabaseFileSystem</span></code></a><ul>
 <li><a class="reference internal" href="#fsspec_db.MySQLDatabaseFileSystem.cat_file"><code class="docutils literal notranslate"><span class="pre">MySQLDatabaseFileSystem.cat_file()</span></code></a></li>
 <li><a class="reference internal" href="#fsspec_db.MySQLDatabaseFileSystem.info"><code class="docutils literal notranslate"><span class="pre">MySQLDatabaseFileSystem.info()</span></code></a></li>
@@ -1205,7 +1190,6 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <li><a class="reference internal" href="#fsspec_db.spec.AbstractDatabaseFileSystem.put_file"><code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem.put_file()</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#fsspec_db.spec.DBFile"><code class="docutils literal notranslate"><span class="pre">DBFile</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#module-fsspec_db.sqlite">SQLite Backend</a><ul>
