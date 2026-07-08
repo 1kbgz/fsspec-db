@@ -20,6 +20,10 @@ The public Python API is intentionally small. Most users construct filesystems t
    :show-inheritance:
 ```
 
+`AbstractDatabaseFileSystem` and the native SQLite, PostgreSQL, and MySQL filesystem
+classes expose `query(sql, params=None)` for `pyarrow.Table` results and
+`open_query(sql, params=None)` for Arrow IPC stream bytes.
+
 ## SQLite Backend
 
 ```{eval-rst}
