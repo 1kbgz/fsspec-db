@@ -1,16 +1,20 @@
 import gc
 import io
+import json
 import sqlite3
 
 import fsspec
 import fsspec.config as fsspec_config
 import pyarrow as pa
+import pyarrow.csv as pacsv
 import pyarrow.ipc as ipc
+import pyarrow.json as pajson
 import pyarrow.parquet as pq
 import pytest
 
 import fsspec_db.mysql as mysql_mod
 import fsspec_db.postgres as postgres_mod
+import fsspec_db.sqlite as sqlite_mod
 from fsspec_db import (
     AbstractDatabase,
     AbstractDatabaseFileSystem,
@@ -89,6 +93,35 @@ def arrow_stream_bytes(table):
     with ipc.new_stream(sink, table.schema) as writer:
         writer.write_table(table)
     return sink.getvalue().to_pybytes()
+
+
+def table_format_bytes(table, fmt):
+    if fmt == "arrow":
+        return arrow_stream_bytes(table)
+    if fmt == "parquet":
+        sink = io.BytesIO()
+        pq.write_table(table, sink)
+        return sink.getvalue()
+    if fmt == "csv":
+        sink = pa.BufferOutputStream()
+        pacsv.write_csv(table, sink)
+        return sink.getvalue().to_pybytes()
+    if fmt == "jsonl":
+        return b"".join(json.dumps(row).encode() + b"\n" for row in table.to_pylist())
+    raise ValueError(fmt)
+
+
+def read_format_table(data, fmt):
+    if fmt == "arrow":
+        with ipc.open_stream(data) as reader:
+            return reader.read_all()
+    if fmt == "parquet":
+        return pq.read_table(io.BytesIO(data))
+    if fmt == "csv":
+        return pacsv.read_csv(io.BytesIO(data))
+    if fmt == "jsonl":
+        return pajson.read_json(io.BytesIO(data))
+    raise ValueError(fmt)
 
 
 def test_python_filesystem_lists_and_infos():
@@ -176,6 +209,34 @@ def test_python_filesystem_query_uses_bridge():
     assert table.num_rows == 2
     assert db.queries == ["SELECT ? AS id"]
     assert db.params == [[1]]
+
+
+def test_native_filesystems_expose_query_helpers(monkeypatch):
+    class FakeRustFs:
+        def __init__(self, *args, **kwargs):
+            self.calls = []
+
+        def query_arrow(self, sql, params=None):
+            self.calls.append((sql, params))
+            return arrow_stream_bytes(pa.table({"id": [1]}))
+
+    monkeypatch.setattr(sqlite_mod._rust, "RustSqliteDatabaseFs", FakeRustFs)
+    monkeypatch.setattr(postgres_mod._rust, "RustPostgresDatabaseFs", FakeRustFs)
+    monkeypatch.setattr(mysql_mod._rust, "RustMySqlDatabaseFs", FakeRustFs)
+
+    filesystems = [
+        SQLiteDatabaseFileSystem(database=":memory:", skip_instance_cache=True),
+        PostgresDatabaseFileSystem(dsn="postgresql://localhost/app", skip_instance_cache=True),
+        MySQLDatabaseFileSystem(dsn="mysql://localhost/app", skip_instance_cache=True),
+    ]
+
+    for fs in filesystems:
+        assert fs.query("SELECT 1").column("id").to_pylist() == [1]
+        query_file = fs.open_query("SELECT ?", [1])
+        assert isinstance(query_file, io.BytesIO)
+        with ipc.open_stream(query_file.read()) as reader:
+            assert reader.read_all().column("id").to_pylist() == [1]
+        assert fs._rust.calls == [("SELECT 1", None), ("SELECT ?", [1])]
 
 
 def test_python_database_error_crosses_bridge():
@@ -576,6 +637,110 @@ def test_sqlite_filesystem_writes_and_puts(tmp_path):
     pq.write_table(pa.table({"name": ["dorothy"], "score": [None]}), local)
     fs.put_file(str(local), "/main/users.parquet")
     assert fs.query("SELECT name, score FROM users ORDER BY id").column("name").to_pylist() == ["dorothy"]
+
+
+def test_sqlite_filesystem_round_trips_read_codecs(tmp_path):
+    path = tmp_path / "app.db"
+    with sqlite3.connect(path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE users (
+                name TEXT NOT NULL,
+                score REAL NOT NULL
+            );
+            INSERT INTO users (name, score) VALUES ('ada', 1.5), ('grace', 2.5);
+            """
+        )
+
+    fs = fsspec.filesystem("db+sqlite", database=str(path))
+
+    for fmt in ("arrow", "parquet", "csv", "jsonl"):
+        data = fs.cat_file(f"/main/users.{fmt}?columns=name,score")
+        table = read_format_table(data, fmt)
+        assert table.column_names == ["name", "score"]
+        assert table.column("name").to_pylist() == ["ada", "grace"]
+        assert table.column("score").to_pylist() == [1.5, 2.5]
+
+
+def test_sqlite_filesystem_round_trips_write_codecs_and_modes(tmp_path):
+    path = tmp_path / "app.db"
+    with sqlite3.connect(path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE users (
+                name TEXT NOT NULL,
+                score REAL NOT NULL
+            );
+            INSERT INTO users (name, score) VALUES ('seed', 0.5);
+            """
+        )
+
+    fs = fsspec.filesystem("db+sqlite", database=str(path))
+
+    for index, fmt in enumerate(("arrow", "parquet", "csv", "jsonl"), start=1):
+        first = pa.table({"name": [f"{fmt}-truncate"], "score": [float(index)]})
+        second = pa.table({"name": [f"{fmt}-append"], "score": [float(index) + 0.5]})
+
+        fs.pipe_file(f"/main/users.{fmt}", table_format_bytes(first, fmt))
+        assert fs.query("SELECT name FROM users ORDER BY rowid").column("name").to_pylist() == [f"{fmt}-truncate"]
+
+        fs.pipe_file(f"/main/users.{fmt}", table_format_bytes(second, fmt), mode="append")
+        assert fs.query("SELECT name FROM users ORDER BY rowid").column("name").to_pylist() == [
+            f"{fmt}-truncate",
+            f"{fmt}-append",
+        ]
+
+
+def test_sqlite_filesystem_pushes_projection_predicate_and_limit(tmp_path):
+    path = tmp_path / "app.db"
+    with sqlite3.connect(path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE users (
+                name TEXT NOT NULL,
+                score REAL NOT NULL
+            );
+            INSERT INTO users (name, score) VALUES ('ada', 1.5), ('grace', 2.5), ('katherine', 3.5);
+            """
+        )
+
+    fs = fsspec.filesystem("db+sqlite", database=str(path))
+
+    data = fs.cat_file("/main/users.arrow?columns=name&where=score%20%3E%202&limit=1")
+    with ipc.open_stream(data) as reader:
+        table = reader.read_all()
+
+    assert table.column_names == ["name"]
+    assert table.column("name").to_pylist() == ["grace"]
+
+
+def test_sqlite_filesystem_lists_view_dependency_targets(tmp_path):
+    path = tmp_path / "app.db"
+    with sqlite3.connect(path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE users (
+                name TEXT NOT NULL
+            );
+            CREATE TABLE teams (
+                name TEXT NOT NULL
+            );
+            CREATE VIEW user_teams AS
+                SELECT users.name AS user_name, teams.name AS team_name
+                FROM users JOIN teams ON 1 = 1;
+            """
+        )
+
+    fs = fsspec.filesystem("db+sqlite", database=str(path))
+
+    assert fs.info("/main/user_teams")["kind"] == "view"
+    assert fs.cat_file("/main/user_teams/definition.sql").startswith(b"CREATE VIEW user_teams")
+    assert set(fs.ls("/main/user_teams/depends_on", detail=False)) == {
+        "/main/user_teams/depends_on/teams",
+        "/main/user_teams/depends_on/users",
+    }
+    assert fs.info("/main/user_teams/depends_on/users")["target"] == "/main/users"
+    assert fs.info("/main/user_teams/depends_on/teams")["target"] == "/main/teams"
 
 
 def test_sqlite_filesystem_rejects_unknown_insert_column(tmp_path):
