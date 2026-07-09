@@ -243,9 +243,166 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="python-backends">
 <h1>Python Backends<a class="headerlink" href="#python-backends" title="Link to this heading">¶</a></h1>
-<p>Python-defined databases implement <code class="docutils literal notranslate"><span class="pre">AbstractDatabase</span></code>. <code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem</span></code> wraps
-that object and delegates filesystem behavior through the Rust <code class="docutils literal notranslate"><span class="pre">DatabaseFs</span></code> bridge, so Python
-backend authors do not reimplement path parsing.</p>
+<p>Python-defined database backends implement <code class="docutils literal notranslate"><span class="pre">fsspec_db.AbstractDatabase</span></code>. An
+<code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem</span></code> wraps the object and delegates filesystem behavior through the
+Rust <code class="docutils literal notranslate"><span class="pre">DatabaseFs</span></code> bridge.</p>
+<section id="contract">
+<h2>Contract<a class="headerlink" href="#contract" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">AbstractDatabase</span></code> mirrors the Rust <code class="docutils literal notranslate"><span class="pre">Database</span></code> trait method set, except for Rust-only default
+methods such as <code class="docutils literal notranslate"><span class="pre">arrow_extraction</span></code>. The object must be safe to call from the bridge while the
+Python GIL is held.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Method</p></th>
+<th class="head"><p>Return value</p></th>
+<th class="head"><p>Contract</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dialect()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">str</span></code></p></td>
+<td><p>One of <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">sqlite</span></code>, <code class="docutils literal notranslate"><span class="pre">postgres</span></code>, <code class="docutils literal notranslate"><span class="pre">postgresql</span></code>, or <code class="docutils literal notranslate"><span class="pre">mysql</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">list_schemas()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">list[SchemaInfo]</span></code></p></td>
+<td><p>All schemas visible to the backend.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">list_relations(schema)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">list[RelationInfo]</span></code></p></td>
+<td><p>Tables and views in <code class="docutils literal notranslate"><span class="pre">schema</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">list_columns(schema,</span> <span class="pre">relation)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">list[ColumnInfo]</span></code></p></td>
+<td><p>Columns for <code class="docutils literal notranslate"><span class="pre">schema.relation</span></code>, ordered by ordinal position.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">list_indexes(schema,</span> <span class="pre">relation)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">list[IndexInfo]</span></code></p></td>
+<td><p>Indexes for <code class="docutils literal notranslate"><span class="pre">schema.relation</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">list_constraints(schema,</span> <span class="pre">relation)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">list[ConstraintInfo]</span></code></p></td>
+<td><p>Constraints for <code class="docutils literal notranslate"><span class="pre">schema.relation</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">relation_info(schema,</span> <span class="pre">relation)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">RelationInfo</span></code></p></td>
+<td><p>Metadata for one table or view.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">view_definition(schema,</span> <span class="pre">view)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">str</span></code></p></td>
+<td><p>SQL text for one view.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">query(sql,</span> <span class="pre">params=None)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code></p></td>
+<td><p>Query result for SQL plus optional scalar bind parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">insert(schema,</span> <span class="pre">relation,</span> <span class="pre">table,</span> <span class="pre">mode=&quot;append&quot;)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">int</span></code></p></td>
+<td><p>Number of rows inserted from <code class="docutils literal notranslate"><span class="pre">table</span></code>; <code class="docutils literal notranslate"><span class="pre">mode</span></code> is <code class="docutils literal notranslate"><span class="pre">append</span></code> or <code class="docutils literal notranslate"><span class="pre">truncate</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="metadata-objects">
+<h2>Metadata Objects<a class="headerlink" href="#metadata-objects" title="Link to this heading">¶</a></h2>
+<p>Backends return the metadata classes exported by <code class="docutils literal notranslate"><span class="pre">fsspec_db</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Class</p></th>
+<th class="head"><p>Constructor</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SchemaInfo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SchemaInfo(name,</span> <span class="pre">catalog=None,</span> <span class="pre">comment=None)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">RelationInfo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">RelationInfo(name,</span> <span class="pre">kind,</span> <span class="pre">row_count=None,</span> <span class="pre">size_bytes=None,</span> <span class="pre">comment=None)</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ColumnInfo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ColumnInfo(name,</span> <span class="pre">data_type,</span> <span class="pre">nullable,</span> <span class="pre">default,</span> <span class="pre">ordinal,</span> <span class="pre">primary_key=False,</span> <span class="pre">comment=None)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">IndexInfo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">IndexInfo(name,</span> <span class="pre">columns,</span> <span class="pre">unique,</span> <span class="pre">method=None)</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ConstraintInfo</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ConstraintInfo(name,</span> <span class="pre">kind,</span> <span class="pre">columns,</span> <span class="pre">references=None,</span> <span class="pre">expr=None)</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">RelationInfo.kind</span></code> is <code class="docutils literal notranslate"><span class="pre">table</span></code> or <code class="docutils literal notranslate"><span class="pre">view</span></code>. <code class="docutils literal notranslate"><span class="pre">ConstraintInfo.kind</span></code> is <code class="docutils literal notranslate"><span class="pre">pk</span></code>, <code class="docutils literal notranslate"><span class="pre">fk</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">check</span></code>.</p>
+</section>
+<section id="query-boundary">
+<h2>Query Boundary<a class="headerlink" href="#query-boundary" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">query(sql,</span> <span class="pre">params=None)</span></code> returns a <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code>. <code class="docutils literal notranslate"><span class="pre">params</span></code> contains values representable by
+the bridge scalar type set: <code class="docutils literal notranslate"><span class="pre">None</span></code>, <code class="docutils literal notranslate"><span class="pre">bool</span></code>, <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">float</span></code>, <code class="docutils literal notranslate"><span class="pre">str</span></code>, and <code class="docutils literal notranslate"><span class="pre">bytes</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem.query()</span></code> and <code class="docutils literal notranslate"><span class="pre">open_query()</span></code> call the backend’s <code class="docutils literal notranslate"><span class="pre">query()</span></code> through the
+Rust bridge. Path reads such as <code class="docutils literal notranslate"><span class="pre">/main/users.arrow?columns=id&amp;limit=10</span></code> generate SQL in Rust and
+then call the same backend method.</p>
+</section>
+<section id="insert-boundary">
+<h2>Insert Boundary<a class="headerlink" href="#insert-boundary" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">insert(schema,</span> <span class="pre">relation,</span> <span class="pre">table,</span> <span class="pre">mode=&quot;append&quot;)</span></code> receives a <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code> decoded from a
+relation data file. <code class="docutils literal notranslate"><span class="pre">mode</span></code> values are:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mode</p></th>
+<th class="head"><p>Semantics</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">append</span></code></p></td>
+<td><p>Add rows to the existing relation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">truncate</span></code></p></td>
+<td><p>Replace relation rows before inserting table.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The method returns the number of inserted rows.</p>
+</section>
+<section id="exceptions">
+<h2>Exceptions<a class="headerlink" href="#exceptions" title="Link to this heading">¶</a></h2>
+<p>The bridge maps common Python exceptions to fsspec/Rust error categories.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Python exception</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code></p></td>
+<td><p>Missing schema, relation, or item.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">PermissionError</span></code></p></td>
+<td><p>Permission-denied operation.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">FileExistsError</span></code></p></td>
+<td><p>Existing item for create semantics.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">NotADirectoryError</span></code></p></td>
+<td><p>Directory operation on a file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">IsADirectoryError</span></code></p></td>
+<td><p>File operation on a directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ValueError</span></code></p></td>
+<td><p>Invalid argument or unsupported value.</p></td>
+</tr>
+<tr class="row-even"><td><p>Other exceptions</p></td>
+<td><p>Generic backend error.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="minimal-backend">
 <h2>Minimal Backend<a class="headerlink" href="#minimal-backend" title="Link to this heading">¶</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
@@ -303,72 +460,6 @@ backend authors do not reimplement path parsing.</p>
 <span class="n">fs</span> <span class="o">=</span> <span class="n">AbstractDatabaseFileSystem</span><span class="p">(</span><span class="n">MemoryDatabase</span><span class="p">())</span>
 </pre></div>
 </div>
-</section>
-<section id="required-methods">
-<h2>Required Methods<a class="headerlink" href="#required-methods" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Method</p></th>
-<th class="head"><p>Purpose</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dialect()</span></code></p></td>
-<td><p>Returns a dialect name such as <code class="docutils literal notranslate"><span class="pre">sqlite</span></code>, <code class="docutils literal notranslate"><span class="pre">postgresql</span></code>, <code class="docutils literal notranslate"><span class="pre">mysql</span></code>, or <code class="docutils literal notranslate"><span class="pre">generic</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">list_schemas()</span></code></p></td>
-<td><p>Returns <code class="docutils literal notranslate"><span class="pre">SchemaInfo</span></code> objects.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">list_relations(schema)</span></code></p></td>
-<td><p>Returns tables and views as <code class="docutils literal notranslate"><span class="pre">RelationInfo</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">list_columns(schema,</span> <span class="pre">relation)</span></code></p></td>
-<td><p>Returns <code class="docutils literal notranslate"><span class="pre">ColumnInfo</span></code> metadata.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">list_indexes(schema,</span> <span class="pre">relation)</span></code></p></td>
-<td><p>Returns <code class="docutils literal notranslate"><span class="pre">IndexInfo</span></code> metadata.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">list_constraints(schema,</span> <span class="pre">relation)</span></code></p></td>
-<td><p>Returns <code class="docutils literal notranslate"><span class="pre">ConstraintInfo</span></code> metadata.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">relation_info(schema,</span> <span class="pre">relation)</span></code></p></td>
-<td><p>Returns one relation or raises <code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">view_definition(schema,</span> <span class="pre">view)</span></code></p></td>
-<td><p>Returns SQL text for a view.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">query(sql,</span> <span class="pre">params=None)</span></code></p></td>
-<td><p>Returns a <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">insert(schema,</span> <span class="pre">relation,</span> <span class="pre">table,</span> <span class="pre">mode=&quot;append&quot;)</span></code></p></td>
-<td><p>Inserts a <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code> and returns row count.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Raise normal Python filesystem-style exceptions where possible. The bridge maps
-<code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code>, <code class="docutils literal notranslate"><span class="pre">PermissionError</span></code>, <code class="docutils literal notranslate"><span class="pre">FileExistsError</span></code>, <code class="docutils literal notranslate"><span class="pre">NotADirectoryError</span></code>,
-<code class="docutils literal notranslate"><span class="pre">IsADirectoryError</span></code>, and <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> back into fsspec exceptions.</p>
-</section>
-<section id="query-and-insert-boundaries">
-<h2>Query And Insert Boundaries<a class="headerlink" href="#query-and-insert-boundaries" title="Link to this heading">¶</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem.query()</span></code> and <code class="docutils literal notranslate"><span class="pre">open_query()</span></code> both cross the Rust bridge. Query
-parameters are marshaled to Rust values, then back into Python for the backend’s <code class="docutils literal notranslate"><span class="pre">query</span></code>
-method. <code class="docutils literal notranslate"><span class="pre">insert()</span></code> receives a <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code> decoded from the incoming relation data file.</p>
-<p>This keeps Python-defined backends behaviorally aligned with native Rust backends:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">pipe_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">,</span> <span class="n">arrow_ipc_bytes</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM users&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="when-to-use-this">
-<h2>When To Use This<a class="headerlink" href="#when-to-use-this" title="Link to this heading">¶</a></h2>
-<p>Use Python-defined backends when a database driver already exists in Python, when you want to
-adapt SQLAlchemy/DBAPI metadata, or when the “database” is a virtual table over another
-source. Native Rust backends are better for production driver integrations where avoiding the
-GIL and reducing Python boundary crossings matter.</p>
 </section>
 </section>
 
@@ -428,10 +519,12 @@ GIL and reducing Python boundary crossings matter.</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Python Backends</a><ul>
+<li><a class="reference internal" href="#contract">Contract</a></li>
+<li><a class="reference internal" href="#metadata-objects">Metadata Objects</a></li>
+<li><a class="reference internal" href="#query-boundary">Query Boundary</a></li>
+<li><a class="reference internal" href="#insert-boundary">Insert Boundary</a></li>
+<li><a class="reference internal" href="#exceptions">Exceptions</a></li>
 <li><a class="reference internal" href="#minimal-backend">Minimal Backend</a></li>
-<li><a class="reference internal" href="#required-methods">Required Methods</a></li>
-<li><a class="reference internal" href="#query-and-insert-boundaries">Query And Insert Boundaries</a></li>
-<li><a class="reference internal" href="#when-to-use-this">When To Use This</a></li>
 </ul>
 </li>
 </ul>
