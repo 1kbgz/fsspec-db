@@ -1,8 +1,77 @@
 # Python Backends
 
-Python-defined databases implement `AbstractDatabase`. `AbstractDatabaseFileSystem` wraps
-that object and delegates filesystem behavior through the Rust `DatabaseFs` bridge, so Python
-backend authors do not reimplement path parsing.
+Python-defined database backends implement `fsspec_db.AbstractDatabase`. An
+`AbstractDatabaseFileSystem` wraps the object and delegates filesystem behavior through the
+Rust `DatabaseFs` bridge.
+
+## Contract
+
+`AbstractDatabase` mirrors the Rust `Database` trait method set, except for Rust-only default
+methods such as `arrow_extraction`. The object must be safe to call from the bridge while the
+Python GIL is held.
+
+| Method                                           | Return value           | Contract                                                                |
+| ------------------------------------------------ | ---------------------- | ----------------------------------------------------------------------- |
+| `dialect()`                                      | `str`                  | One of `generic`, `sqlite`, `postgres`, `postgresql`, or `mysql`.       |
+| `list_schemas()`                                 | `list[SchemaInfo]`     | All schemas visible to the backend.                                     |
+| `list_relations(schema)`                         | `list[RelationInfo]`   | Tables and views in `schema`.                                           |
+| `list_columns(schema, relation)`                 | `list[ColumnInfo]`     | Columns for `schema.relation`, ordered by ordinal position.             |
+| `list_indexes(schema, relation)`                 | `list[IndexInfo]`      | Indexes for `schema.relation`.                                          |
+| `list_constraints(schema, relation)`             | `list[ConstraintInfo]` | Constraints for `schema.relation`.                                      |
+| `relation_info(schema, relation)`                | `RelationInfo`         | Metadata for one table or view.                                         |
+| `view_definition(schema, view)`                  | `str`                  | SQL text for one view.                                                  |
+| `query(sql, params=None)`                        | `pyarrow.Table`        | Query result for SQL plus optional scalar bind parameters.              |
+| `insert(schema, relation, table, mode="append")` | `int`                  | Number of rows inserted from `table`; `mode` is `append` or `truncate`. |
+
+## Metadata Objects
+
+Backends return the metadata classes exported by `fsspec_db`.
+
+| Class            | Constructor                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| `SchemaInfo`     | `SchemaInfo(name, catalog=None, comment=None)`                                             |
+| `RelationInfo`   | `RelationInfo(name, kind, row_count=None, size_bytes=None, comment=None)`                  |
+| `ColumnInfo`     | `ColumnInfo(name, data_type, nullable, default, ordinal, primary_key=False, comment=None)` |
+| `IndexInfo`      | `IndexInfo(name, columns, unique, method=None)`                                            |
+| `ConstraintInfo` | `ConstraintInfo(name, kind, columns, references=None, expr=None)`                          |
+
+`RelationInfo.kind` is `table` or `view`. `ConstraintInfo.kind` is `pk`, `fk`, `unique`, or
+`check`.
+
+## Query Boundary
+
+`query(sql, params=None)` returns a `pyarrow.Table`. `params` contains values representable by
+the bridge scalar type set: `None`, `bool`, `int`, `float`, `str`, and `bytes`.
+
+`AbstractDatabaseFileSystem.query()` and `open_query()` call the backend's `query()` through the
+Rust bridge. Path reads such as `/main/users.arrow?columns=id&limit=10` generate SQL in Rust and
+then call the same backend method.
+
+## Insert Boundary
+
+`insert(schema, relation, table, mode="append")` receives a `pyarrow.Table` decoded from a
+relation data file. `mode` values are:
+
+| Mode       | Semantics                                     |
+| ---------- | --------------------------------------------- |
+| `append`   | Add rows to the existing relation.            |
+| `truncate` | Replace relation rows before inserting table. |
+
+The method returns the number of inserted rows.
+
+## Exceptions
+
+The bridge maps common Python exceptions to fsspec/Rust error categories.
+
+| Python exception     | Meaning                                |
+| -------------------- | -------------------------------------- |
+| `FileNotFoundError`  | Missing schema, relation, or item.     |
+| `PermissionError`    | Permission-denied operation.           |
+| `FileExistsError`    | Existing item for create semantics.    |
+| `NotADirectoryError` | Directory operation on a file.         |
+| `IsADirectoryError`  | File operation on a directory.         |
+| `ValueError`         | Invalid argument or unsupported value. |
+| Other exceptions     | Generic backend error.                 |
 
 ## Minimal Backend
 
@@ -61,43 +130,3 @@ class MemoryDatabase(AbstractDatabase):
 
 fs = AbstractDatabaseFileSystem(MemoryDatabase())
 ```
-
-## Required Methods
-
-| Method                                           | Purpose                                                                       |
-| ------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `dialect()`                                      | Returns a dialect name such as `sqlite`, `postgresql`, `mysql`, or `generic`. |
-| `list_schemas()`                                 | Returns `SchemaInfo` objects.                                                 |
-| `list_relations(schema)`                         | Returns tables and views as `RelationInfo`.                                   |
-| `list_columns(schema, relation)`                 | Returns `ColumnInfo` metadata.                                                |
-| `list_indexes(schema, relation)`                 | Returns `IndexInfo` metadata.                                                 |
-| `list_constraints(schema, relation)`             | Returns `ConstraintInfo` metadata.                                            |
-| `relation_info(schema, relation)`                | Returns one relation or raises `FileNotFoundError`.                           |
-| `view_definition(schema, view)`                  | Returns SQL text for a view.                                                  |
-| `query(sql, params=None)`                        | Returns a `pyarrow.Table`.                                                    |
-| `insert(schema, relation, table, mode="append")` | Inserts a `pyarrow.Table` and returns row count.                              |
-
-Raise normal Python filesystem-style exceptions where possible. The bridge maps
-`FileNotFoundError`, `PermissionError`, `FileExistsError`, `NotADirectoryError`,
-`IsADirectoryError`, and `ValueError` back into fsspec exceptions.
-
-## Query And Insert Boundaries
-
-`AbstractDatabaseFileSystem.query()` and `open_query()` both cross the Rust bridge. Query
-parameters are marshaled to Rust values, then back into Python for the backend's `query`
-method. `insert()` receives a `pyarrow.Table` decoded from the incoming relation data file.
-
-This keeps Python-defined backends behaviorally aligned with native Rust backends:
-
-```python
-fs.cat_file("/main/users.arrow")
-fs.pipe_file("/main/users.arrow", arrow_ipc_bytes)
-fs.query("SELECT * FROM users")
-```
-
-## When To Use This
-
-Use Python-defined backends when a database driver already exists in Python, when you want to
-adapt SQLAlchemy/DBAPI metadata, or when the "database" is a virtual table over another
-source. Native Rust backends are better for production driver integrations where avoiding the
-GIL and reducing Python boundary crossings matter.

@@ -1,7 +1,9 @@
 import gc
 import io
 import json
+import re
 import sqlite3
+from pathlib import Path
 
 import fsspec
 import fsspec.config as fsspec_config
@@ -86,6 +88,15 @@ class MockDatabase(AbstractDatabase):
     def insert(self, schema, relation, table, mode="append"):
         self.queries.append(f"insert:{schema}.{relation}:{mode}:{table.num_rows}")
         return table.num_rows
+
+
+def test_abstract_database_contract_matches_rust_trait():
+    rust_database = Path(__file__).resolve().parents[2] / "rust" / "src" / "database.rs"
+    trait_source = rust_database.read_text().split("pub trait Database", 1)[1]
+    rust_methods = set(re.findall(r"^    fn ([a-z_]+)\(", trait_source, flags=re.MULTILINE))
+    rust_only_defaults = {"arrow_extraction"}
+
+    assert set(AbstractDatabase.__abstractmethods__) == rust_methods - rust_only_defaults
 
 
 def arrow_stream_bytes(table):

@@ -22,46 +22,62 @@ _WRITE_OPEN_MODES = {"wb", "w", "ab", "a"}
 
 
 class AbstractDatabase(abc.ABC):
-    """Minimal database contract used by :class:`AbstractDatabaseFileSystem`."""
+    """Database primitive contract for Python-defined backends.
+
+    The method set mirrors the Rust ``Database`` trait, except for Rust-only default methods.
+    Metadata methods return the exported ``*Info`` classes. ``query`` returns a
+    ``pyarrow.Table``. ``insert`` receives a ``pyarrow.Table`` and returns the number of rows
+    inserted.
+    """
 
     @abc.abstractmethod
     def dialect(self) -> str:
+        """Return ``generic``, ``sqlite``, ``postgres``, ``postgresql``, or ``mysql``."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def list_schemas(self) -> list[SchemaInfo]:
+        """Return all schemas visible to the backend."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def list_relations(self, schema: str) -> list[RelationInfo]:
+        """Return tables and views in ``schema``."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def list_columns(self, schema: str, relation: str) -> list[ColumnInfo]:
+        """Return columns for ``schema.relation``."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def list_indexes(self, schema: str, relation: str) -> list[IndexInfo]:
+        """Return indexes for ``schema.relation``."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def list_constraints(self, schema: str, relation: str) -> list[ConstraintInfo]:
+        """Return constraints for ``schema.relation``."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def relation_info(self, schema: str, relation: str) -> RelationInfo:
+        """Return metadata for one table or view."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def view_definition(self, schema: str, view: str) -> str:
+        """Return SQL text for one view."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def query(self, sql: str, params: list[Any] | None = None) -> Any:
+        """Return a ``pyarrow.Table`` for ``sql`` and optional scalar ``params``."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def insert(self, schema: str, relation: str, table: Any, mode: str = "append") -> int:
+        """Insert ``table`` into ``schema.relation`` with ``append`` or ``truncate`` mode."""
         raise NotImplementedError
 
 
