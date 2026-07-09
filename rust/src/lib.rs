@@ -8,6 +8,7 @@ pub mod path;
 pub mod postgres;
 pub mod sql;
 pub mod sqlite;
+pub mod stream;
 pub mod types;
 
 pub use codec::{

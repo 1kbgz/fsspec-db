@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
 
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
@@ -7,11 +8,12 @@ use fsspec_rs::{
     OpenOptions,
 };
 
-use crate::codec::{csv_to_arrow, format_reader, ipc_to_arrow, jsonl_to_arrow, parquet_to_arrow};
+use crate::codec::{csv_to_arrow, ipc_to_arrow, jsonl_to_arrow, parquet_to_arrow};
 use crate::database::{Database, DbValue, InsertMode};
 use crate::file::DbFile;
 use crate::path::{DataFormat, DbFacet, DbPath, DbPathKind};
 use crate::sql::{select_sql, SelectOptions};
+use crate::stream::EncodedDbFile;
 use crate::types::{
     ColumnInfo, ConstraintInfo, Dialect, IndexInfo, RelationInfo, RelationKind, SchemaInfo,
 };
@@ -69,6 +71,10 @@ where
     ) -> FsResult<Box<dyn FsFile>> {
         let opts = opts.unwrap_or_default();
         self.open_db(path, mode, &opts).map_err(FsError::from)
+    }
+
+    fn cat_file(&self, path: &str, start: Option<i64>, end: Option<i64>) -> FsResult<Vec<u8>> {
+        self.cat_file_db(path, start, end).map_err(FsError::from)
     }
 
     fn info(&self, path: &str) -> FsResult<FileInfo> {
@@ -230,18 +236,14 @@ where
                 let options = select_options_from_query(&self.db.dialect(), &parsed.query)?;
                 let sql = select_sql(&self.db.dialect(), schema, relation, &options)?;
                 let reader = self.db.query(&sql, &[] as &[DbValue])?;
-                let data = format_reader(reader, &format)?;
-                let mut info = relation_data_file(
+                let info = relation_data_file(
                     self.db.dialect(),
                     schema,
                     relation,
                     &relation_info,
-                    format,
+                    format.clone(),
                 )?;
-                info.size = data.len() as u64;
-                info.extra
-                    .insert("size_known".to_string(), "true".to_string());
-                Ok(Box::new(DbFile::readable(data, info)))
+                Ok(Box::new(EncodedDbFile::new(reader, format, info)?))
             }
             DbPathKind::ViewDefinition => {
                 let (schema, relation) = required_relation(&parsed)?;
@@ -253,6 +255,36 @@ where
                 "path is not a readable database file: {path}"
             ))),
         }
+    }
+
+    fn cat_file_db(&self, path: &str, start: Option<i64>, end: Option<i64>) -> Result<Vec<u8>> {
+        let mut file = self.open_db(path, OpenMode::Read, &OpenOptions::default())?;
+        if matches!(start, Some(value) if value < 0) || matches!(end, Some(value) if value < 0) {
+            let mut data = Vec::new();
+            file.read_to_end(&mut data)?;
+            return Ok(slice_materialized(data, start, end));
+        }
+
+        let start = start.unwrap_or(0).max(0) as u64;
+        if start > 0 {
+            file.seek(SeekFrom::Start(start))?;
+        }
+
+        let mut data = Vec::new();
+        match end {
+            Some(end) => {
+                let end = end.max(0) as u64;
+                if end <= start {
+                    return Ok(data);
+                }
+                let mut limited = file.take(end - start);
+                limited.read_to_end(&mut data)?;
+            }
+            None => {
+                file.read_to_end(&mut data)?;
+            }
+        }
+        Ok(data)
     }
 
     fn open_write_db(
@@ -436,6 +468,24 @@ fn required_relation(path: &DbPath) -> Result<(&str, &str)> {
         .as_deref()
         .ok_or_else(|| DbError::InvalidArgument("relation path is missing relation".to_string()))?;
     Ok((schema, relation))
+}
+
+fn slice_materialized(data: Vec<u8>, start: Option<i64>, end: Option<i64>) -> Vec<u8> {
+    let len = data.len() as i64;
+    let start = match start {
+        Some(value) if value < 0 => (len + value).max(0),
+        Some(value) => value.max(0),
+        None => 0,
+    } as usize;
+    let end = match end {
+        Some(value) if value < 0 => (len + value).max(0),
+        Some(value) => value.max(0),
+        None => len,
+    } as usize;
+    if end <= start {
+        return Vec::new();
+    }
+    data[start.min(data.len())..end.min(data.len())].to_vec()
 }
 
 fn schema_info(schema: SchemaInfo) -> FileInfo {
@@ -676,7 +726,8 @@ mod tests {
 
     use arrow::array::{ArrayRef, Int64Array, StringArray};
     use arrow::datatypes::{DataType, Field, Schema};
-    use arrow::record_batch::RecordBatch;
+    use arrow::error::ArrowError;
+    use arrow::record_batch::{RecordBatch, RecordBatchReader};
     use fsspec_rs::{FileSystem, FileType, OpenOptions};
 
     use super::*;
@@ -687,6 +738,7 @@ mod tests {
     struct MockDatabase {
         inserts: Mutex<Vec<(String, String, InsertMode, usize)>>,
         queries: Mutex<Vec<String>>,
+        batch_reads: Arc<Mutex<usize>>,
     }
 
     impl MockDatabase {
@@ -694,6 +746,7 @@ mod tests {
             Self {
                 inserts: Mutex::new(Vec::new()),
                 queries: Mutex::new(Vec::new()),
+                batch_reads: Arc::new(Mutex::new(0)),
             }
         }
 
@@ -710,6 +763,38 @@ mod tests {
                 ],
             )
             .unwrap()
+        }
+    }
+
+    struct CountingBatchReader {
+        schema: Arc<Schema>,
+        batch: Option<RecordBatch>,
+        reads: Arc<Mutex<usize>>,
+    }
+
+    impl CountingBatchReader {
+        fn new(batch: RecordBatch, reads: Arc<Mutex<usize>>) -> Self {
+            Self {
+                schema: batch.schema(),
+                batch: Some(batch),
+                reads,
+            }
+        }
+    }
+
+    impl Iterator for CountingBatchReader {
+        type Item = std::result::Result<RecordBatch, ArrowError>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let batch = self.batch.take()?;
+            *self.reads.lock().unwrap() += 1;
+            Some(Ok(batch))
+        }
+    }
+
+    impl RecordBatchReader for CountingBatchReader {
+        fn schema(&self) -> Arc<Schema> {
+            Arc::clone(&self.schema)
         }
     }
 
@@ -807,7 +892,10 @@ mod tests {
 
         fn query(&self, sql: &str, _params: &[DbValue]) -> Result<RecordBatchStream> {
             self.queries.lock().unwrap().push(sql.to_string());
-            rows_to_arrow(vec![Self::batch()])
+            Ok(Box::new(CountingBatchReader::new(
+                Self::batch(),
+                Arc::clone(&self.batch_reads),
+            )))
         }
 
         fn insert(
@@ -886,6 +974,21 @@ mod tests {
 
         let queries = fs.database().queries.lock().unwrap();
         assert_eq!(queries[0], "SELECT * FROM \"main\".\"users\"");
+    }
+
+    #[test]
+    fn open_relation_data_does_not_encode_batches_before_read() {
+        let fs = DatabaseFs::new(MockDatabase::new());
+        let mut file = fs.open("/main/users.arrow", OpenMode::Read, None).unwrap();
+        assert_eq!(*fs.database().batch_reads.lock().unwrap(), 0);
+        assert_eq!(file.size().unwrap(), None);
+
+        let mut data = Vec::new();
+        file.read_to_end(&mut data).unwrap();
+
+        assert!(!data.is_empty());
+        assert_eq!(*fs.database().batch_reads.lock().unwrap(), 1);
+        assert_eq!(file.size().unwrap(), Some(data.len() as u64));
     }
 
     #[test]
