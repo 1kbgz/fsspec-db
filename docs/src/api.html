@@ -777,6 +777,9 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 
 </dd></dl>
 
+<p><code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem</span></code> and the native SQLite, PostgreSQL, and MySQL filesystem
+classes expose <code class="docutils literal notranslate"><span class="pre">query(sql,</span> <span class="pre">params=None)</span></code> for <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code> results and
+<code class="docutils literal notranslate"><span class="pre">open_query(sql,</span> <span class="pre">params=None)</span></code> for Arrow IPC stream bytes.</p>
 </section>
 <section id="module-fsspec_db.sqlite">
 <span id="sqlite-backend"></span><h2>SQLite Backend<a class="headerlink" href="#module-fsspec_db.sqlite" title="Link to this heading">¶</a></h2>
