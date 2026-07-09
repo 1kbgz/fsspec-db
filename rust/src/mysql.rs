@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{mpsc::sync_channel, mpsc::SyncSender, Arc};
 
 use arrow::array::{
     Array, ArrayRef, BinaryArray, BooleanArray, Date32Array, Float32Array, Float64Array,
@@ -9,6 +9,7 @@ use arrow::array::{
 };
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
+use futures_util::TryStreamExt;
 use sqlx::mysql::{
     MySqlArguments, MySqlColumn, MySqlConnectOptions, MySqlPool, MySqlPoolOptions, MySqlRow,
 };
@@ -17,8 +18,11 @@ use sqlx::types::{BigDecimal, JsonValue};
 use sqlx::{AssertSqlSafe, Column, Executor, Row, SqlSafeStr, Statement, TypeInfo, ValueRef};
 use tokio::runtime::Runtime;
 
+#[cfg(test)]
 use crate::codec::rows_to_arrow;
-use crate::database::{Database, DbPoolOptions, DbValue, InsertMode, RecordBatchStream};
+use crate::database::{
+    ChannelRecordBatchReader, Database, DbPoolOptions, DbValue, InsertMode, RecordBatchStream,
+};
 use crate::sql::{insert_sql, quote_identifier};
 use crate::types::{
     ColumnInfo, ConstraintInfo, ConstraintKind, Dialect, IndexInfo, RelationInfo, RelationKind,
@@ -28,9 +32,11 @@ use crate::{DbError, Result};
 
 type MySqlQuery<'q> = sqlx::query::Query<'q, sqlx::MySql, MySqlArguments>;
 
+const QUERY_BATCH_SIZE: usize = 1024;
+
 pub struct MySqlDatabase {
     pool: MySqlPool,
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
 }
 
 impl MySqlDatabase {
@@ -53,7 +59,10 @@ impl MySqlDatabase {
             builder = builder.max_connections(max_connections);
         }
         let pool = runtime.block_on(builder.connect_with(options))?;
-        Ok(Self { pool, runtime })
+        Ok(Self {
+            pool,
+            runtime: Arc::new(runtime),
+        })
     }
 
     fn block_on<T>(&self, future: impl std::future::Future<Output = Result<T>>) -> Result<T> {
@@ -287,24 +296,12 @@ impl Database for MySqlDatabase {
     }
 
     fn query(&self, sql: &str, params: &[DbValue]) -> Result<RecordBatchStream> {
-        self.block_on(async {
-            let mut query = sqlx::query(AssertSqlSafe(sql.to_string()));
-            for param in params {
-                query = bind_value(query, param);
-            }
-            let rows = query.fetch_all(&self.pool).await?;
-            let columns = match rows.first() {
-                Some(row) => mysql_column_metadata(row.columns()),
-                None => {
-                    let mut conn = self.pool.acquire().await?;
-                    let statement = (&mut *conn)
-                        .prepare(AssertSqlSafe(sql.to_string()).into_sql_str())
-                        .await?;
-                    mysql_column_metadata(statement.columns())
-                }
-            };
-            mysql_rows_to_arrow(columns, rows)
-        })
+        mysql_stream_query(
+            Arc::clone(&self.runtime),
+            self.pool.clone(),
+            sql.to_string(),
+            params.to_vec(),
+        )
     }
 
     fn insert(
@@ -498,10 +495,146 @@ fn mysql_column_metadata(columns: &[MySqlColumn]) -> Vec<(String, String)> {
         .collect()
 }
 
+fn mysql_stream_query(
+    runtime: Arc<Runtime>,
+    pool: MySqlPool,
+    sql: String,
+    params: Vec<DbValue>,
+) -> Result<RecordBatchStream> {
+    let (schema_tx, schema_rx) = sync_channel(1);
+    let (batch_tx, batch_rx) = sync_channel(1);
+
+    std::thread::spawn(move || {
+        let mut schema_sent = false;
+        let result = mysql_stream_worker(
+            runtime,
+            pool,
+            sql,
+            params,
+            &schema_tx,
+            &batch_tx,
+            &mut schema_sent,
+        );
+        if let Err(err) = result {
+            if schema_sent {
+                let _ = batch_tx.send(Err(err));
+            } else {
+                let _ = schema_tx.send(Err(err));
+            }
+        }
+    });
+
+    let schema = schema_rx
+        .recv()
+        .map_err(|_| DbError::Other("MySQL query stream ended before schema".to_string()))??;
+    Ok(Box::new(ChannelRecordBatchReader::new(schema, batch_rx)))
+}
+
+fn mysql_stream_worker(
+    runtime: Arc<Runtime>,
+    pool: MySqlPool,
+    sql: String,
+    params: Vec<DbValue>,
+    schema_tx: &SyncSender<Result<Arc<Schema>>>,
+    batch_tx: &SyncSender<Result<RecordBatch>>,
+    schema_sent: &mut bool,
+) -> Result<()> {
+    runtime.block_on(async {
+        let mut query = sqlx::query(AssertSqlSafe(sql.clone()));
+        for param in &params {
+            query = bind_value(query, param);
+        }
+
+        let mut rows = query.fetch(&pool);
+        let mut column_metadata = None;
+        let mut chunk = Vec::with_capacity(QUERY_BATCH_SIZE);
+        while let Some(row) = rows.try_next().await? {
+            if column_metadata.is_none() {
+                column_metadata = Some(mysql_column_metadata(row.columns()));
+            }
+            chunk.push(row);
+            if chunk.len() == QUERY_BATCH_SIZE {
+                let metadata = column_metadata
+                    .as_ref()
+                    .expect("metadata set from first row");
+                if !send_mysql_chunk(schema_tx, batch_tx, schema_sent, metadata, &mut chunk)? {
+                    return Ok(());
+                }
+            }
+        }
+        drop(rows);
+
+        if chunk.is_empty() {
+            if !*schema_sent {
+                let schema = mysql_query_schema(&pool, &sql).await?;
+                let batch = RecordBatch::new_empty(Arc::clone(&schema));
+                schema_tx
+                    .send(Ok(schema))
+                    .map_err(|_| DbError::Other("MySQL query stream closed".to_string()))?;
+                *schema_sent = true;
+                let _ = batch_tx.send(Ok(batch));
+            }
+            return Ok(());
+        }
+
+        let metadata = column_metadata
+            .as_ref()
+            .expect("metadata set from first row");
+        let _ = send_mysql_chunk(schema_tx, batch_tx, schema_sent, metadata, &mut chunk)?;
+        Ok(())
+    })
+}
+
+fn send_mysql_chunk(
+    schema_tx: &SyncSender<Result<Arc<Schema>>>,
+    batch_tx: &SyncSender<Result<RecordBatch>>,
+    schema_sent: &mut bool,
+    column_metadata: &[(String, String)],
+    chunk: &mut Vec<MySqlRow>,
+) -> Result<bool> {
+    let rows = std::mem::take(chunk);
+    let batch = mysql_rows_to_batch(column_metadata.to_vec(), rows)?;
+    if !*schema_sent {
+        schema_tx
+            .send(Ok(batch.schema()))
+            .map_err(|_| DbError::Other("MySQL query stream closed".to_string()))?;
+        *schema_sent = true;
+    }
+    Ok(batch_tx.send(Ok(batch)).is_ok())
+}
+
+async fn mysql_query_schema(pool: &MySqlPool, sql: &str) -> Result<Arc<Schema>> {
+    let mut conn = pool.acquire().await?;
+    let statement = (&mut *conn)
+        .prepare(AssertSqlSafe(sql.to_string()).into_sql_str())
+        .await?;
+    let column_metadata = mysql_column_metadata(statement.columns());
+    Ok(mysql_schema(column_metadata))
+}
+
+fn mysql_schema(column_metadata: Vec<(String, String)>) -> Arc<Schema> {
+    let fields = column_metadata
+        .iter()
+        .map(|(name, type_name)| {
+            let values = ColumnValues::new(std::slice::from_ref(type_name));
+            Field::new(name, values.data_type(), true)
+        })
+        .collect::<Vec<_>>();
+    Arc::new(Schema::new(fields))
+}
+
+#[cfg(test)]
 fn mysql_rows_to_arrow(
     column_metadata: Vec<(String, String)>,
     rows: Vec<MySqlRow>,
 ) -> Result<RecordBatchStream> {
+    rows_to_arrow(vec![mysql_rows_to_batch(column_metadata, rows)?])
+}
+
+fn mysql_rows_to_batch(
+    column_metadata: Vec<(String, String)>,
+    rows: Vec<MySqlRow>,
+) -> Result<RecordBatch> {
     let names = column_metadata
         .iter()
         .map(|(name, _)| name.clone())
@@ -538,8 +671,7 @@ fn mysql_rows_to_arrow(
         .into_iter()
         .map(ColumnValues::finish)
         .collect::<Vec<_>>();
-    let batch = RecordBatch::try_new(Arc::new(Schema::new(fields)), arrays)?;
-    rows_to_arrow(vec![batch])
+    RecordBatch::try_new(Arc::new(Schema::new(fields)), arrays).map_err(DbError::from)
 }
 
 enum ColumnValues {

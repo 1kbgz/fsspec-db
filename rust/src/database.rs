@@ -1,9 +1,42 @@
-use arrow::record_batch::RecordBatchReader;
+use std::sync::{mpsc::Receiver, Arc};
+
+use arrow::datatypes::SchemaRef;
+use arrow::error::ArrowError;
+use arrow::record_batch::{RecordBatch, RecordBatchReader};
 
 use crate::types::{ColumnInfo, ConstraintInfo, Dialect, IndexInfo, RelationInfo, SchemaInfo};
 use crate::{DbError, Result};
 
 pub type RecordBatchStream = Box<dyn RecordBatchReader + Send>;
+
+pub struct ChannelRecordBatchReader {
+    schema: SchemaRef,
+    receiver: Receiver<Result<RecordBatch>>,
+}
+
+impl ChannelRecordBatchReader {
+    pub fn new(schema: SchemaRef, receiver: Receiver<Result<RecordBatch>>) -> Self {
+        Self { schema, receiver }
+    }
+}
+
+impl Iterator for ChannelRecordBatchReader {
+    type Item = std::result::Result<RecordBatch, ArrowError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.receiver.recv() {
+            Ok(Ok(batch)) => Some(Ok(batch)),
+            Ok(Err(err)) => Some(Err(ArrowError::ExternalError(Box::new(err)))),
+            Err(_) => None,
+        }
+    }
+}
+
+impl RecordBatchReader for ChannelRecordBatchReader {
+    fn schema(&self) -> SchemaRef {
+        Arc::clone(&self.schema)
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ArrowExtraction {

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{mpsc::sync_channel, mpsc::SyncSender, Arc};
 
 use arrow::array::{
     Array, ArrayRef, BinaryArray, BooleanArray, Float32Array, Float64Array, Int16Array, Int32Array,
@@ -9,12 +9,14 @@ use arrow::array::{
 };
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
+use futures_util::TryStreamExt;
 use sqlx::sqlite::{SqliteColumn, SqliteConnectOptions, SqlitePool, SqlitePoolOptions, SqliteRow};
 use sqlx::{AssertSqlSafe, Column, Executor, Row, SqlSafeStr, Statement, TypeInfo, ValueRef};
 use tokio::runtime::Runtime;
 
+#[cfg(test)]
 use crate::codec::rows_to_arrow;
-use crate::database::{Database, DbValue, InsertMode, RecordBatchStream};
+use crate::database::{ChannelRecordBatchReader, Database, DbValue, InsertMode, RecordBatchStream};
 use crate::sql::{insert_sql, quote_identifier};
 use crate::types::{
     ColumnInfo, ConstraintInfo, ConstraintKind, Dialect, IndexInfo, RelationInfo, RelationKind,
@@ -22,9 +24,11 @@ use crate::types::{
 };
 use crate::{DbError, Result};
 
+const QUERY_BATCH_SIZE: usize = 1024;
+
 pub struct SqliteDatabase {
     pool: SqlitePool,
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
 }
 
 impl SqliteDatabase {
@@ -39,7 +43,10 @@ impl SqliteDatabase {
                 .max_connections(1)
                 .connect_with(options),
         )?;
-        Ok(Self { pool, runtime })
+        Ok(Self {
+            pool,
+            runtime: Arc::new(runtime),
+        })
     }
 
     fn block_on<T>(&self, future: impl std::future::Future<Output = Result<T>>) -> Result<T> {
@@ -282,24 +289,12 @@ impl Database for SqliteDatabase {
     }
 
     fn query(&self, sql: &str, params: &[DbValue]) -> Result<RecordBatchStream> {
-        self.block_on(async {
-            let mut query = sqlx::query(AssertSqlSafe(sql.to_string()));
-            for param in params {
-                query = bind_value(query, param);
-            }
-            let rows = query.fetch_all(&self.pool).await?;
-            let columns = match rows.first() {
-                Some(row) => sqlite_column_metadata(row.columns()),
-                None => {
-                    let mut conn = self.pool.acquire().await?;
-                    let statement = (&mut *conn)
-                        .prepare(AssertSqlSafe(sql.to_string()).into_sql_str())
-                        .await?;
-                    sqlite_column_metadata(statement.columns())
-                }
-            };
-            sqlite_rows_to_arrow(columns, rows)
-        })
+        sqlite_stream_query(
+            Arc::clone(&self.runtime),
+            self.pool.clone(),
+            sql.to_string(),
+            params.to_vec(),
+        )
     }
 
     fn insert(
@@ -584,6 +579,123 @@ fn downcast_array<T: 'static>(array: &dyn Array) -> Result<&T> {
     })
 }
 
+fn sqlite_stream_query(
+    runtime: Arc<Runtime>,
+    pool: SqlitePool,
+    sql: String,
+    params: Vec<DbValue>,
+) -> Result<RecordBatchStream> {
+    let (schema_tx, schema_rx) = sync_channel(1);
+    let (batch_tx, batch_rx) = sync_channel(1);
+
+    std::thread::spawn(move || {
+        let mut schema_sent = false;
+        let result = sqlite_stream_worker(
+            runtime,
+            pool,
+            sql,
+            params,
+            &schema_tx,
+            &batch_tx,
+            &mut schema_sent,
+        );
+        if let Err(err) = result {
+            if schema_sent {
+                let _ = batch_tx.send(Err(err));
+            } else {
+                let _ = schema_tx.send(Err(err));
+            }
+        }
+    });
+
+    let schema = schema_rx
+        .recv()
+        .map_err(|_| DbError::Other("SQLite query stream ended before schema".to_string()))??;
+    Ok(Box::new(ChannelRecordBatchReader::new(schema, batch_rx)))
+}
+
+fn sqlite_stream_worker(
+    runtime: Arc<Runtime>,
+    pool: SqlitePool,
+    sql: String,
+    params: Vec<DbValue>,
+    schema_tx: &SyncSender<Result<Arc<Schema>>>,
+    batch_tx: &SyncSender<Result<RecordBatch>>,
+    schema_sent: &mut bool,
+) -> Result<()> {
+    runtime.block_on(async {
+        let mut query = sqlx::query(AssertSqlSafe(sql.clone()));
+        for param in &params {
+            query = bind_value(query, param);
+        }
+
+        let mut rows = query.fetch(&pool);
+        let mut column_metadata = None;
+        let mut chunk = Vec::with_capacity(QUERY_BATCH_SIZE);
+        while let Some(row) = rows.try_next().await? {
+            if column_metadata.is_none() {
+                column_metadata = Some(sqlite_column_metadata(row.columns()));
+            }
+            chunk.push(row);
+            if chunk.len() == QUERY_BATCH_SIZE {
+                let metadata = column_metadata
+                    .as_ref()
+                    .expect("metadata set from first row");
+                if !send_sqlite_chunk(schema_tx, batch_tx, schema_sent, metadata, &mut chunk)? {
+                    return Ok(());
+                }
+            }
+        }
+        drop(rows);
+
+        if chunk.is_empty() {
+            if !*schema_sent {
+                let schema = sqlite_query_schema(&pool, &sql).await?;
+                let batch = RecordBatch::new_empty(Arc::clone(&schema));
+                schema_tx
+                    .send(Ok(schema))
+                    .map_err(|_| DbError::Other("SQLite query stream closed".to_string()))?;
+                *schema_sent = true;
+                let _ = batch_tx.send(Ok(batch));
+            }
+            return Ok(());
+        }
+
+        let metadata = column_metadata
+            .as_ref()
+            .expect("metadata set from first row");
+        let _ = send_sqlite_chunk(schema_tx, batch_tx, schema_sent, metadata, &mut chunk)?;
+        Ok(())
+    })
+}
+
+fn send_sqlite_chunk(
+    schema_tx: &SyncSender<Result<Arc<Schema>>>,
+    batch_tx: &SyncSender<Result<RecordBatch>>,
+    schema_sent: &mut bool,
+    column_metadata: &[(String, String)],
+    chunk: &mut Vec<SqliteRow>,
+) -> Result<bool> {
+    let rows = std::mem::take(chunk);
+    let batch = sqlite_rows_to_batch(column_metadata.to_vec(), rows)?;
+    if !*schema_sent {
+        schema_tx
+            .send(Ok(batch.schema()))
+            .map_err(|_| DbError::Other("SQLite query stream closed".to_string()))?;
+        *schema_sent = true;
+    }
+    Ok(batch_tx.send(Ok(batch)).is_ok())
+}
+
+async fn sqlite_query_schema(pool: &SqlitePool, sql: &str) -> Result<Arc<Schema>> {
+    let mut conn = pool.acquire().await?;
+    let statement = (&mut *conn)
+        .prepare(AssertSqlSafe(sql.to_string()).into_sql_str())
+        .await?;
+    let column_metadata = sqlite_column_metadata(statement.columns());
+    Ok(sqlite_schema(column_metadata))
+}
+
 fn sqlite_column_metadata(columns: &[SqliteColumn]) -> Vec<(String, String)> {
     columns
         .iter()
@@ -596,10 +708,21 @@ fn sqlite_column_metadata(columns: &[SqliteColumn]) -> Vec<(String, String)> {
         .collect()
 }
 
-fn sqlite_rows_to_arrow(
+fn sqlite_schema(column_metadata: Vec<(String, String)>) -> Arc<Schema> {
+    let fields = column_metadata
+        .iter()
+        .map(|(name, type_name)| {
+            let values = ColumnValues::new(std::slice::from_ref(type_name));
+            Field::new(name, values.data_type(), true)
+        })
+        .collect::<Vec<_>>();
+    Arc::new(Schema::new(fields))
+}
+
+fn sqlite_rows_to_batch(
     column_metadata: Vec<(String, String)>,
     rows: Vec<SqliteRow>,
-) -> Result<RecordBatchStream> {
+) -> Result<RecordBatch> {
     let names = column_metadata
         .iter()
         .map(|(name, _)| name.clone())
@@ -636,8 +759,7 @@ fn sqlite_rows_to_arrow(
         .into_iter()
         .map(ColumnValues::finish)
         .collect::<Vec<_>>();
-    let batch = RecordBatch::try_new(Arc::new(Schema::new(fields)), arrays)?;
-    rows_to_arrow(vec![batch])
+    RecordBatch::try_new(Arc::new(Schema::new(fields)), arrays).map_err(DbError::from)
 }
 
 enum ColumnValues {
@@ -906,6 +1028,35 @@ mod tests {
         assert_eq!(batch.schema().field(0).data_type(), &DataType::Int64);
         assert_eq!(batch.schema().field(1).data_type(), &DataType::Utf8);
         assert_eq!(batch.schema().field(2).data_type(), &DataType::Float64);
+    }
+
+    #[test]
+    fn streams_sqlite_query_results_in_batches() {
+        let db = SqliteDatabase::connect(":memory:").unwrap();
+        db.runtime
+            .block_on(async {
+                sqlx::query("CREATE TABLE rows (value INTEGER NOT NULL)")
+                    .execute(&db.pool)
+                    .await?;
+                for value in 0..(QUERY_BATCH_SIZE + 3) {
+                    sqlx::query("INSERT INTO rows (value) VALUES (?)")
+                        .bind(value as i64)
+                        .execute(&db.pool)
+                        .await?;
+                }
+                Ok::<_, sqlx::Error>(())
+            })
+            .unwrap();
+
+        let mut reader = db
+            .query("SELECT value FROM rows ORDER BY value", &[])
+            .unwrap();
+        let first = reader.next().unwrap().unwrap();
+        let second = reader.next().unwrap().unwrap();
+
+        assert_eq!(first.num_rows(), QUERY_BATCH_SIZE);
+        assert_eq!(second.num_rows(), 3);
+        assert!(reader.next().is_none());
     }
 
     #[test]
