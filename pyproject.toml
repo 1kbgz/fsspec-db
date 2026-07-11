@@ -73,6 +73,7 @@ develop = [
 "db+postgres" = "fsspec_db.postgres.PostgresDatabaseFileSystem"
 "db+postgresql" = "fsspec_db.postgres.PostgresDatabaseFileSystem"
 "db+sqlite" = "fsspec_db.sqlite.SQLiteDatabaseFileSystem"
+"db+sqlalchemy" = "fsspec_db.sqlalchemy.SQLAlchemyDatabaseFileSystem"
 
 [project.urls]
 Repository = "https://github.com/1kbgz/fsspec-db"
