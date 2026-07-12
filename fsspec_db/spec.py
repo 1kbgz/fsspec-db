@@ -26,6 +26,8 @@ class IntrospectionCacheMixin:
     """Cache database listings and metadata using fsspec's bounded TTL cache."""
 
     def _cached_ls(self, path: str, detail: bool, loader: Any, refresh: bool = False) -> list[Any]:
+        if refresh:
+            self.invalidate_cache(path)
         key = path.rstrip("/") or self.root_marker
         entries = None
         if not refresh:
@@ -39,6 +41,8 @@ class IntrospectionCacheMixin:
         return entries if detail else [entry["name"] for entry in entries]
 
     def _cached_info(self, path: str, loader: Any, refresh: bool = False) -> dict[str, Any]:
+        if refresh:
+            self.invalidate_cache(path)
         key = _INFO_CACHE_PREFIX + (path.rstrip("/") or self.root_marker)
         entries = None
         if not refresh:
@@ -53,6 +57,9 @@ class IntrospectionCacheMixin:
 
     def invalidate_cache(self, path: str | None = None) -> None:
         self.dircache.clear()
+        rust = getattr(self, "_rust", None)
+        if rust is not None and hasattr(rust, "invalidate_cache"):
+            rust.invalidate_cache()
         super().invalidate_cache(path)
 
 
