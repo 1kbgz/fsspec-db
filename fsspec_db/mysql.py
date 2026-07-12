@@ -7,12 +7,12 @@ from urllib.parse import quote, urlencode
 
 import fsspec
 
-from .spec import IntrospectionCacheMixin, _binary_mode, _copy_local_to_rust_file, _validate_open_mode
+from .spec import DatabaseDdlMixin, IntrospectionCacheMixin, _binary_mode, _copy_local_to_rust_file, _validate_open_mode
 
 _rust = import_module(".fsspec_db", __package__)
 
 
-class MySQLDatabaseFileSystem(IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class MySQLDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """MySQL-backed fsspec filesystem registered as ``db+mysql``."""
 
     protocol = ("db+mysql",)
