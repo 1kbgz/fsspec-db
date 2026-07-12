@@ -13,7 +13,7 @@ import pyarrow.ipc as ipc
 import pyarrow.json as pajson
 import pyarrow.parquet as pq
 
-from .spec import AbstractDatabase, DatabaseDdlMixin, IntrospectionCacheMixin, _validate_open_mode
+from .spec import AbstractDatabase, DatabaseDdlMixin, DeferredDatabaseFile, IntrospectionCacheMixin, _validate_open_mode
 
 _FORMATS = {"arrow", "parquet", "csv", "jsonl", "sql"}
 _FACETS = {"columns", "indexes", "constraints", "depends_on"}
@@ -141,7 +141,11 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
 
     def put_file(self, lpath: str, rpath: str, callback: Any = None, mode: str = "overwrite", **kwargs: Any) -> None:
         with open(lpath, "rb") as source:
-            self.pipe_file(rpath, source.read(), mode=mode)
+            data = source.read()
+        if callback is not None:
+            callback.set_size(len(data))
+            callback.relative_update(len(data))
+        self.pipe_file(rpath, data, mode=mode)
 
     def _open(
         self,
@@ -156,6 +160,8 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
         if mode.startswith("r"):
             return io.BytesIO(self._read(path))
         insert_mode = "append" if mode.startswith("a") else "truncate"
+        if not autocommit:
+            return DeferredDatabaseFile(lambda data: self._write(path, data, insert_mode))
         return _WriteBuffer(lambda data: self._write(path, data, insert_mode))
 
     def _read(self, path: str) -> bytes:

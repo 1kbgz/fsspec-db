@@ -6,7 +6,14 @@ from typing import Any
 
 import fsspec
 
-from .spec import DatabaseDdlMixin, IntrospectionCacheMixin, _binary_mode, _copy_local_to_rust_file, _validate_open_mode
+from .spec import (
+    DatabaseDdlMixin,
+    DeferredDatabaseFile,
+    IntrospectionCacheMixin,
+    _binary_mode,
+    _copy_local_to_rust_file,
+    _validate_open_mode,
+)
 
 _rust = import_module(".fsspec_db", __package__)
 
@@ -83,7 +90,7 @@ class SQLiteDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec
     def put_file(self, lpath: str, rpath: str, callback: Any = None, mode: str = "overwrite", **kwargs: Any) -> None:
         if mode == "create" and self.exists(rpath):
             raise FileExistsError(rpath)
-        _copy_local_to_rust_file(self._rust, lpath, rpath, "ab" if mode == "append" else "wb")
+        _copy_local_to_rust_file(self._rust, lpath, rpath, "ab" if mode == "append" else "wb", callback)
         self.invalidate_cache(rpath)
 
     def _open(
@@ -98,6 +105,8 @@ class SQLiteDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec
         _validate_open_mode(mode, autocommit)
         if mode in {"wb", "w", "ab", "a"}:
             self.invalidate_cache(path)
+            if not autocommit:
+                return DeferredDatabaseFile(lambda data: self._write_file(path, data, _binary_mode(mode)))
         return self._rust.open_file(path, _binary_mode(mode))
 
 
