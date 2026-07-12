@@ -627,6 +627,183 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="fsspec_db.PyDatabaseFileSystem">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fsspec_db.</span></span><span class="sig-name descname"><span class="pre">PyDatabaseFileSystem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/fsspec_db/python.html#PyDatabaseFileSystem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.PyDatabaseFileSystem" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractFileSystem</span></code></p>
+<p>Direct Python filesystem adapter for an <a class="reference internal" href="#fsspec_db.AbstractDatabase" title="fsspec_db.AbstractDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractDatabase</span></code></a>.</p>
+<p>Unlike <code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem</span></code>, this class does not call the Rust bridge. It is
+primarily useful for Python-only backend implementations and conformance testing.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.PyDatabaseFileSystem.cat_file">
+<span class="sig-name descname"><span class="pre">cat_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bytes</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/python.html#PyDatabaseFileSystem.cat_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.PyDatabaseFileSystem.cat_file" title="Link to this definition">¶</a></dt>
+<dd><p>Get the content of a file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<em>URL</em><em> of </em><em>file on this filesystems</em>)</p></li>
+<li><p><strong>start</strong> (<em>int</em>) – Bytes limits of the read. If negative, backwards from end,
+like usual python slices. Either can be None for start or
+end of file, respectively</p></li>
+<li><p><strong>end</strong> (<em>int</em>) – Bytes limits of the read. If negative, backwards from end,
+like usual python slices. Either can be None for start or
+end of file, respectively</p></li>
+<li><p><strong>kwargs</strong> (passed to <code class="docutils literal notranslate"><span class="pre">open()</span></code>.)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.PyDatabaseFileSystem.info">
+<span class="sig-name descname"><span class="pre">info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/fsspec_db/python.html#PyDatabaseFileSystem.info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.PyDatabaseFileSystem.info" title="Link to this definition">¶</a></dt>
+<dd><p>Give details of entry at path</p>
+<p>Returns a single dictionary, with exactly the same information as <code class="docutils literal notranslate"><span class="pre">ls</span></code>
+would with <code class="docutils literal notranslate"><span class="pre">detail=True</span></code>.</p>
+<p>The default implementation calls ls and could be overridden by a
+shortcut. kwargs are passed on to <code class="docutils literal notranslate"><span class="pre">`ls()</span></code>.</p>
+<p>Some file systems might not be able to measure the file’s size, in
+which case, the returned dict will include <code class="docutils literal notranslate"><span class="pre">'size':</span> <span class="pre">None</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>dict with keys</strong> (<em>name (full path in the FS), size (in bytes), type (file,</em>)</p></li>
+<li><p><em>directory, or something else) and other FS-specific keys.</em></p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.PyDatabaseFileSystem.ls">
+<span class="sig-name descname"><span class="pre">ls</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detail</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/fsspec_db/python.html#PyDatabaseFileSystem.ls"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.PyDatabaseFileSystem.ls" title="Link to this definition">¶</a></dt>
+<dd><p>List objects at path.</p>
+<p>This should include subdirectories and files at that location. The
+difference between a file and a directory must be clear when details
+are requested.</p>
+<p>The specific keys, or perhaps a FileInfo class, or similar, is TBD,
+but must be consistent across implementations.
+Must include:</p>
+<ul class="simple">
+<li><p>full path to the entry (without protocol)</p></li>
+<li><p>size of the entry, in bytes. If the value cannot be determined, will
+be <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p>type of entry, “file”, “directory” or other</p></li>
+</ul>
+<p>Additional information
+may be present, appropriate to the file-system, e.g., generation,
+checksum, etc.</p>
+<p>May use refresh=True|False to allow use of self._ls_from_cache to
+check for a saved listing and avoid calling the backend. This would be
+common where listing may be expensive.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path</strong> (<em>str</em>)</p></li>
+<li><p><strong>detail</strong> (<em>bool</em>) – if True, gives a list of dictionaries, where each is the same as
+the result of <code class="docutils literal notranslate"><span class="pre">info(path)</span></code>. If False, gives a list of paths
+(str).</p></li>
+<li><p><strong>kwargs</strong> (<em>may have additional backend-specific options</em><em>, </em><em>such as version</em>) – information</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>List of strings if detail is False, or list of directory information</em></p></li>
+<li><p><em>dicts if detail is True.</em></p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.PyDatabaseFileSystem.pipe_file">
+<span class="sig-name descname"><span class="pre">pipe_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bytes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'overwrite'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/python.html#PyDatabaseFileSystem.pipe_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.PyDatabaseFileSystem.pipe_file" title="Link to this definition">¶</a></dt>
+<dd><p>Set the bytes of given file</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.PyDatabaseFileSystem.put_file">
+<span class="sig-name descname"><span class="pre">put_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'overwrite'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/python.html#PyDatabaseFileSystem.put_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.PyDatabaseFileSystem.put_file" title="Link to this definition">¶</a></dt>
+<dd><p>Copy single file to remote</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fsspec_db.</span></span><span class="sig-name descname"><span class="pre">SQLAlchemyDatabase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">engine</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">engine_options</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#fsspec_db.spec.AbstractDatabase" title="fsspec_db.spec.AbstractDatabase"><code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractDatabase</span></code></a></p>
+<p>SQLAlchemy engine adapter implementing the Python database contract.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.dialect">
+<span class="sig-name descname"><span class="pre">dialect</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.dialect"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.dialect" title="Link to this definition">¶</a></dt>
+<dd><p>Return <code class="docutils literal notranslate"><span class="pre">generic</span></code>, <code class="docutils literal notranslate"><span class="pre">sqlite</span></code>, <code class="docutils literal notranslate"><span class="pre">postgres</span></code>, <code class="docutils literal notranslate"><span class="pre">postgresql</span></code>, or <code class="docutils literal notranslate"><span class="pre">mysql</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.insert">
+<span class="sig-name descname"><span class="pre">insert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'append'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.insert"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.insert" title="Link to this definition">¶</a></dt>
+<dd><p>Insert <code class="docutils literal notranslate"><span class="pre">table</span></code> into <code class="docutils literal notranslate"><span class="pre">schema.relation</span></code> with <code class="docutils literal notranslate"><span class="pre">append</span></code> or <code class="docutils literal notranslate"><span class="pre">truncate</span></code> mode.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.list_columns">
+<span class="sig-name descname"><span class="pre">list_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">ColumnInfo</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.list_columns"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.list_columns" title="Link to this definition">¶</a></dt>
+<dd><p>Return columns for <code class="docutils literal notranslate"><span class="pre">schema.relation</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.list_constraints">
+<span class="sig-name descname"><span class="pre">list_constraints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">ConstraintInfo</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.list_constraints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.list_constraints" title="Link to this definition">¶</a></dt>
+<dd><p>Return constraints for <code class="docutils literal notranslate"><span class="pre">schema.relation</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.list_indexes">
+<span class="sig-name descname"><span class="pre">list_indexes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">IndexInfo</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.list_indexes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.list_indexes" title="Link to this definition">¶</a></dt>
+<dd><p>Return indexes for <code class="docutils literal notranslate"><span class="pre">schema.relation</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.list_relations">
+<span class="sig-name descname"><span class="pre">list_relations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">RelationInfo</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.list_relations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.list_relations" title="Link to this definition">¶</a></dt>
+<dd><p>Return tables and views in <code class="docutils literal notranslate"><span class="pre">schema</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.list_schemas">
+<span class="sig-name descname"><span class="pre">list_schemas</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">SchemaInfo</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.list_schemas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.list_schemas" title="Link to this definition">¶</a></dt>
+<dd><p>Return all schemas visible to the backend.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.query">
+<span class="sig-name descname"><span class="pre">query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sql</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Table</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.query"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.query" title="Link to this definition">¶</a></dt>
+<dd><p>Return a <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code> for <code class="docutils literal notranslate"><span class="pre">sql</span></code> and optional scalar <code class="docutils literal notranslate"><span class="pre">params</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.relation_info">
+<span class="sig-name descname"><span class="pre">relation_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">relation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">RelationInfo</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.relation_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.relation_info" title="Link to this definition">¶</a></dt>
+<dd><p>Return metadata for one table or view.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabase.view_definition">
+<span class="sig-name descname"><span class="pre">view_definition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">view</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabase.view_definition"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabase.view_definition" title="Link to this definition">¶</a></dt>
+<dd><p>Return SQL text for one view.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="fsspec_db.SQLAlchemyDatabaseFileSystem">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fsspec_db.</span></span><span class="sig-name descname"><span class="pre">SQLAlchemyDatabaseFileSystem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/fsspec_db/sqlalchemy.html#SQLAlchemyDatabaseFileSystem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLAlchemyDatabaseFileSystem" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#fsspec_db.PyDatabaseFileSystem" title="fsspec_db.python.PyDatabaseFileSystem"><code class="xref py py-class docutils literal notranslate"><span class="pre">PyDatabaseFileSystem</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="fsspec_db.SQLiteDatabaseFileSystem">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fsspec_db.</span></span><span class="sig-name descname"><span class="pre">SQLiteDatabaseFileSystem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/fsspec_db/sqlite.html#SQLiteDatabaseFileSystem"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLiteDatabaseFileSystem" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">AbstractFileSystem</span></code></p>
@@ -1313,6 +1490,28 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <li><a class="reference internal" href="#fsspec_db.PostgresDatabaseFileSystem.put_file"><code class="docutils literal notranslate"><span class="pre">PostgresDatabaseFileSystem.put_file()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#fsspec_db.PyDatabaseFileSystem"><code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem</span></code></a><ul>
+<li><a class="reference internal" href="#fsspec_db.PyDatabaseFileSystem.cat_file"><code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem.cat_file()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.PyDatabaseFileSystem.info"><code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem.info()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.PyDatabaseFileSystem.ls"><code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem.ls()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.PyDatabaseFileSystem.pipe_file"><code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem.pipe_file()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.PyDatabaseFileSystem.put_file"><code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem.put_file()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase</span></code></a><ul>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.dialect"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.dialect()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.insert"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.insert()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.list_columns"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.list_columns()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.list_constraints"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.list_constraints()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.list_indexes"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.list_indexes()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.list_relations"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.list_relations()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.list_schemas"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.list_schemas()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.query"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.query()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.relation_info"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.relation_info()</span></code></a></li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabase.view_definition"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabase.view_definition()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#fsspec_db.SQLAlchemyDatabaseFileSystem"><code class="docutils literal notranslate"><span class="pre">SQLAlchemyDatabaseFileSystem</span></code></a></li>
 <li><a class="reference internal" href="#fsspec_db.SQLiteDatabaseFileSystem"><code class="docutils literal notranslate"><span class="pre">SQLiteDatabaseFileSystem</span></code></a><ul>
 <li><a class="reference internal" href="#fsspec_db.SQLiteDatabaseFileSystem.cat_file"><code class="docutils literal notranslate"><span class="pre">SQLiteDatabaseFileSystem.cat_file()</span></code></a></li>
 <li><a class="reference internal" href="#fsspec_db.SQLiteDatabaseFileSystem.info"><code class="docutils literal notranslate"><span class="pre">SQLiteDatabaseFileSystem.info()</span></code></a></li>
