@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import io
+import os
 from importlib import import_module
 from typing import Any
 
@@ -277,7 +278,7 @@ class AbstractDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fssp
     def put_file(self, lpath: str, rpath: str, callback: Any = None, mode: str = "overwrite", **kwargs: Any) -> None:
         if mode == "create" and self.exists(rpath):
             raise FileExistsError(rpath)
-        _copy_local_to_rust_file(self._rust, lpath, rpath, "ab" if mode == "append" else "wb")
+        _copy_local_to_rust_file(self._rust, lpath, rpath, "ab" if mode == "append" else "wb", callback)
         self.invalidate_cache(rpath)
 
     def _open(
@@ -292,16 +293,46 @@ class AbstractDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fssp
         _validate_open_mode(mode, autocommit)
         if mode in _WRITE_OPEN_MODES:
             self.invalidate_cache(path)
+            if not autocommit:
+                return DeferredDatabaseFile(lambda data: self._write_file(path, data, _binary_mode(mode)))
         return self._rust.open_file(path, _binary_mode(mode))
 
 
-def _copy_local_to_rust_file(rust_fs: Any, lpath: str, rpath: str, mode: str) -> None:
+class DeferredDatabaseFile(io.BytesIO):
+    """Write buffer committed or discarded by ``fsspec.Transaction``."""
+
+    def __init__(self, commit: Any) -> None:
+        super().__init__()
+        self._commit_callback = commit
+        self._completed = False
+
+    def close(self) -> None:
+        if self._completed:
+            super().close()
+
+    def commit(self) -> None:
+        if not self._completed:
+            self._commit_callback(self.getvalue())
+            self._completed = True
+            super().close()
+
+    def discard(self) -> None:
+        if not self._completed:
+            self._completed = True
+            super().close()
+
+
+def _copy_local_to_rust_file(rust_fs: Any, lpath: str, rpath: str, mode: str, callback: Any = None) -> None:
+    if callback is not None:
+        callback.set_size(os.path.getsize(lpath))
     with open(lpath, "rb") as source, rust_fs.open_file(rpath, mode) as target:
         while True:
             chunk = source.read(_DEFAULT_COPY_BLOCK_SIZE)
             if not chunk:
                 break
             target.write(chunk)
+            if callback is not None:
+                callback.relative_update(len(chunk))
 
 
 def _validate_open_mode(mode: str, autocommit: bool) -> None:
@@ -309,8 +340,6 @@ def _validate_open_mode(mode: str, autocommit: bool) -> None:
         raise NotImplementedError("exclusive create is not supported for database relation writes")
     if mode not in _SUPPORTED_OPEN_MODES:
         raise NotImplementedError(f"database file mode is not supported: {mode}")
-    if not autocommit and mode in _WRITE_OPEN_MODES:
-        raise NotImplementedError("autocommit=False is not supported for database relation writes")
 
 
 def _binary_mode(mode: str) -> str:

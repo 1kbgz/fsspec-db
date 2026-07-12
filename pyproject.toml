@@ -43,6 +43,7 @@ docs = [
 ]
 integration = [
     "duckdb>=1.4",
+    "pandas",
     "psycopg[binary]",
     "pymysql",
     "sqlalchemy>=2",

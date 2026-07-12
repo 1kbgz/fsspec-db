@@ -494,11 +494,53 @@ def test_python_filesystem_write_does_not_commit_on_gc():
     assert db.queries == []
 
 
-def test_python_filesystem_rejects_write_autocommit_false():
-    fs = AbstractDatabaseFileSystem(MockDatabase())
+def test_python_filesystem_transaction_commits_and_discards():
+    db = MockDatabase()
+    fs = AbstractDatabaseFileSystem(db)
+    data = arrow_stream_bytes(pa.table({"id": [3], "name": ["katherine"]}))
 
-    with pytest.raises(NotImplementedError, match="autocommit=False"):
-        fs.open("/main/users.arrow", "wb", autocommit=False)
+    with fs.transaction:
+        with fs.open("/main/users.arrow", "ab") as file:
+            file.write(data)
+        assert db.queries == []
+    assert db.queries == ["insert:main.users:append:1"]
+
+    db.queries.clear()
+    with pytest.raises(RuntimeError):
+        with fs.transaction:
+            with fs.open("/main/users.arrow", "wb") as file:
+                file.write(data)
+            raise RuntimeError("abort")
+    assert db.queries == []
+
+
+def test_sqlite_put_reports_progress_and_mapper_constructs(tmp_path):
+    pandas = pytest.importorskip("pandas")
+    database = tmp_path / "progress.sqlite"
+    source = tmp_path / "rows.arrow"
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE TABLE users (id INTEGER, name TEXT)")
+    source.write_bytes(arrow_stream_bytes(pa.table({"id": [1], "name": ["ada"]})))
+
+    class Callback:
+        def __init__(self):
+            self.size = None
+            self.value = 0
+
+        def set_size(self, size):
+            self.size = size
+
+        def relative_update(self, value):
+            self.value += value
+
+    callback = Callback()
+    fs = SQLiteDatabaseFileSystem(database=str(database), skip_instance_cache=True)
+    fs.put_file(str(source), "/main/users.arrow", callback=callback)
+
+    assert callback.size == source.stat().st_size
+    assert callback.value == callback.size
+    assert fs.get_mapper("/main").root == "/main"
+    assert pandas.read_parquet(fs.open("/main/users.parquet")).to_dict("records") == [{"id": 1, "name": "ada"}]
 
 
 def test_python_filesystem_rejects_exclusive_create_at_open():
