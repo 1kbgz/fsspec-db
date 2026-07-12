@@ -25,8 +25,11 @@ from fsspec_db import (
     IndexInfo,
     MySQLDatabaseFileSystem,
     PostgresDatabaseFileSystem,
+    PyDatabaseFileSystem,
     RelationInfo,
     SchemaInfo,
+    SQLAlchemyDatabase,
+    SQLAlchemyDatabaseFileSystem,
     SQLiteDatabaseFileSystem,
 )
 from fsspec_db.mysql import (
@@ -220,6 +223,55 @@ def test_python_filesystem_query_uses_bridge():
     assert table.num_rows == 2
     assert db.queries == ["SELECT ? AS id"]
     assert db.params == [[1]]
+
+
+@pytest.mark.parametrize("filesystem_type", [AbstractDatabaseFileSystem, PyDatabaseFileSystem])
+def test_python_backend_conformance(filesystem_type):
+    db = MockDatabase()
+    fs = filesystem_type(db, skip_instance_cache=True)
+
+    assert fs.ls("/", detail=False) == ["/main"]
+    assert fs.info("/main/users")["kind"] == "table"
+    assert fs.info("/main/users/columns/id")["primary_key"] is True
+    with ipc.open_stream(fs.cat_file("/main/users.arrow?columns=id&limit=1")) as reader:
+        assert reader.read_all().num_rows == 2
+    assert db.queries[-1] == 'SELECT "id" FROM "main"."users" LIMIT 1'
+
+    data = arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]}))
+    fs.pipe_file("/main/users.arrow", data, mode="append")
+    assert db.queries[-1] == "insert:main.users:append:1"
+
+
+def test_direct_python_filesystem_discards_failed_write():
+    db = MockDatabase()
+    fs = PyDatabaseFileSystem(db)
+
+    with pytest.raises(RuntimeError):
+        with fs.open("/main/users.arrow", "wb") as file:
+            file.write(arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]})))
+            raise RuntimeError("abort")
+
+    assert not any(str(query).startswith("insert:") for query in db.queries)
+
+
+def test_sqlalchemy_python_backend_and_registration(tmp_path):
+    sqlalchemy = pytest.importorskip("sqlalchemy")
+    database = tmp_path / "sqlalchemy.sqlite"
+    engine = sqlalchemy.create_engine(f"sqlite:///{database}")
+    with engine.begin() as connection:
+        connection.exec_driver_sql("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+        connection.exec_driver_sql("INSERT INTO users VALUES (1, 'ada'), (2, 'grace')")
+
+    db = SQLAlchemyDatabase(engine=engine)
+    fs = SQLAlchemyDatabaseFileSystem(engine=engine, skip_instance_cache=True)
+
+    assert db.dialect() == "sqlite"
+    assert fs.info("/main/users")["kind"] == "table"
+    assert fs.info("/main/users/columns/id")["primary_key"] is True
+    assert fs.query("SELECT name FROM users ORDER BY id").column("name").to_pylist() == ["ada", "grace"]
+    fs.pipe_file("/main/users.arrow", arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]})), mode="append")
+    assert fs.query("SELECT count(*) AS count FROM users").column("count").to_pylist() == [3]
+    assert fsspec.get_filesystem_class("db+sqlalchemy") is SQLAlchemyDatabaseFileSystem
 
 
 def test_native_filesystems_expose_query_helpers(monkeypatch):
