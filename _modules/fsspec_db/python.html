@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>fsspec_db.python - fsspec-db v0.2.0</title>
+        <title>fsspec_db.python - fsspec-db v0.3.0</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
@@ -166,7 +166,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../index.html"><div class="brand">fsspec-db <code style='font-size: var(--font-size--small--4);color: var(--sd-color-primary);'>v0.2.0</code></div></a>
+      <a href="../../index.html"><div class="brand">fsspec-db <code style='font-size: var(--font-size--small--4);color: var(--sd-color-primary);'>v0.3.0</code></div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -187,7 +187,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
   
-  <span class="sidebar-brand-text">fsspec-db <code style='font-size: var(--font-size--small--4);color: var(--sd-color-primary);'>v0.2.0</code></span>
+  <span class="sidebar-brand-text">fsspec-db <code style='font-size: var(--font-size--small--4);color: var(--sd-color-primary);'>v0.3.0</code></span>
   
 </a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -422,12 +422,28 @@
         <span class="n">parsed</span> <span class="o">=</span> <span class="n">_parse_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">parsed</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;definition&quot;</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">view_definition</span><span class="p">(</span><span class="n">parsed</span><span class="o">.</span><span class="n">schema</span><span class="p">,</span> <span class="n">parsed</span><span class="o">.</span><span class="n">relation</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">parsed</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;facet&quot;</span> <span class="ow">and</span> <span class="n">parsed</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s2">&quot;columns&quot;</span> <span class="ow">and</span> <span class="n">parsed</span><span class="o">.</span><span class="n">item</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_column_values</span><span class="p">(</span><span class="n">parsed</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">parsed</span><span class="o">.</span><span class="n">kind</span> <span class="o">!=</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">IsADirectoryError</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">parsed</span><span class="o">.</span><span class="n">format</span> <span class="o">==</span> <span class="s2">&quot;sql&quot;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;DDL rendering is not supported by the direct Python adapter&quot;</span><span class="p">)</span>
         <span class="n">sql</span> <span class="o">=</span> <span class="n">_select_sql</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">dialect</span><span class="p">(),</span> <span class="n">parsed</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">_encode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">sql</span><span class="p">),</span> <span class="n">parsed</span><span class="o">.</span><span class="n">format</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_read_column_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parsed</span><span class="p">:</span> <span class="n">_Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_info_uncached</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;/</span><span class="si">{</span><span class="n">parsed</span><span class="o">.</span><span class="n">schema</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">parsed</span><span class="o">.</span><span class="n">relation</span><span class="si">}</span><span class="s2">/columns/</span><span class="si">{</span><span class="n">parsed</span><span class="o">.</span><span class="n">item</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">limit</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">parsed</span><span class="o">.</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;limit&quot;</span><span class="p">,</span> <span class="s2">&quot;100&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">limit</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;limit must be a non-negative integer&quot;</span><span class="p">)</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">parsed</span><span class="o">.</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offset&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">offset</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;offset must be a non-negative integer&quot;</span><span class="p">)</span>
+        <span class="n">dialect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">dialect</span><span class="p">()</span>
+        <span class="n">column</span> <span class="o">=</span> <span class="n">_quote</span><span class="p">(</span><span class="n">dialect</span><span class="p">,</span> <span class="n">parsed</span><span class="o">.</span><span class="n">item</span><span class="p">)</span>
+        <span class="n">relation</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">_quote</span><span class="p">(</span><span class="n">dialect</span><span class="p">,</span><span class="w"> </span><span class="n">parsed</span><span class="o">.</span><span class="n">schema</span><span class="p">)</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">_quote</span><span class="p">(</span><span class="n">dialect</span><span class="p">,</span><span class="w"> </span><span class="n">parsed</span><span class="o">.</span><span class="n">relation</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SELECT DISTINCT </span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2"> FROM </span><span class="si">{</span><span class="n">relation</span><span class="si">}</span><span class="s2"> ORDER BY </span><span class="si">{</span><span class="n">column</span><span class="si">}</span><span class="s2"> LIMIT </span><span class="si">{</span><span class="n">limit</span><span class="si">}</span><span class="s2"> OFFSET </span><span class="si">{</span><span class="n">offset</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">column</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to_pylist</span><span class="p">(),</span> <span class="n">default</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="n">parsed</span> <span class="o">=</span> <span class="n">_parse_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -453,6 +469,7 @@
                 <span class="n">_file</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
                     <span class="mi">0</span><span class="p">,</span>
+                    <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;column&quot;</span><span class="p">,</span>
                     <span class="n">data_type</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">data_type</span><span class="p">,</span>
                     <span class="n">nullable</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">nullable</span><span class="p">,</span>
                     <span class="n">default</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">default</span><span class="p">,</span>
@@ -523,6 +540,10 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">limit</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;limit must be a non-negative integer&quot;</span><span class="p">)</span>
         <span class="n">sql</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; LIMIT </span><span class="si">{</span><span class="n">limit</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="n">offset</span> <span class="o">:=</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offset&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">offset</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;offset must be a non-negative integer&quot;</span><span class="p">)</span>
+        <span class="n">sql</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; OFFSET </span><span class="si">{</span><span class="n">offset</span><span class="si">}</span><span class="s2">&quot;</span>
     <span class="k">return</span> <span class="n">sql</span>
 
 
@@ -616,7 +637,7 @@
       
     </aside>
   </div>
-</div><script src="../../_static/documentation_options.js?v=938c9ccc"></script>
+</div><script src="../../_static/documentation_options.js?v=e259d695"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
