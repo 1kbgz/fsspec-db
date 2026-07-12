@@ -7,12 +7,12 @@ from urllib.parse import quote, urlencode
 
 import fsspec
 
-from .spec import _binary_mode, _copy_local_to_rust_file, _validate_open_mode
+from .spec import IntrospectionCacheMixin, _binary_mode, _copy_local_to_rust_file, _validate_open_mode
 
 _rust = import_module(".fsspec_db", __package__)
 
 
-class PostgresDatabaseFileSystem(fsspec.AbstractFileSystem):
+class PostgresDatabaseFileSystem(IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """PostgreSQL-backed fsspec filesystem registered as ``db+postgresql``."""
 
     protocol = ("db+postgresql", "db+postgres")
@@ -45,10 +45,10 @@ class PostgresDatabaseFileSystem(fsspec.AbstractFileSystem):
         self._rust = _rust.RustPostgresDatabaseFs(source, **pool_options)
 
     def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[dict[str, Any]] | list[str]:
-        return self._rust.ls(path, detail)
+        return self._cached_ls(path, detail, self._rust.ls, kwargs.get("refresh", False))
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
-        return self._rust.info(path)
+        return self._cached_info(path, self._rust.info, kwargs.get("refresh", False))
 
     def cat_file(
         self,
@@ -69,7 +69,9 @@ class PostgresDatabaseFileSystem(fsspec.AbstractFileSystem):
         return io.BytesIO(self._rust.query_arrow(sql, params))
 
     def _write_file(self, path: str, data: bytes, mode: str) -> int:
-        return self._rust.write_file(path, data, mode)
+        written = self._rust.write_file(path, data, mode)
+        self.invalidate_cache(path)
+        return written
 
     def pipe_file(self, path: str, value: bytes, mode: str = "overwrite", **kwargs: Any) -> None:
         if mode == "create" and self.exists(path):
@@ -87,6 +89,7 @@ class PostgresDatabaseFileSystem(fsspec.AbstractFileSystem):
         if mode == "create" and self.exists(rpath):
             raise FileExistsError(rpath)
         _copy_local_to_rust_file(self._rust, lpath, rpath, "ab" if mode == "append" else "wb")
+        self.invalidate_cache(rpath)
 
     def _open(
         self,
@@ -98,6 +101,8 @@ class PostgresDatabaseFileSystem(fsspec.AbstractFileSystem):
         **kwargs: Any,
     ) -> Any:
         _validate_open_mode(mode, autocommit)
+        if mode in {"wb", "w", "ab", "a"}:
+            self.invalidate_cache(path)
         return self._rust.open_file(path, _binary_mode(mode))
 
 

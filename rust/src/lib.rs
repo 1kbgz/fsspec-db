@@ -19,7 +19,7 @@ pub use database::{
     ArrowExtraction, Database, DbPoolOptions, DbValue, InsertMode, RecordBatchStream,
 };
 pub use error::{DbError, Result};
-pub use fs::DatabaseFs;
+pub use fs::{DatabaseFs, IntrospectionCacheOptions};
 pub use fsspec_rs::{FileInfo, FileSystem, FileType, FsError, FsFile, OpenMode};
 pub use mysql::MySqlDatabase;
 pub use path::{DataFormat, DbFacet, DbPath, DbPathKind};

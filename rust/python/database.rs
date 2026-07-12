@@ -379,6 +379,10 @@ impl PyDatabaseFs {
         file_info_to_dict(py, &info)
     }
 
+    fn invalidate_cache(&self) {
+        self.inner.invalidate_cache();
+    }
+
     #[pyo3(signature = (path, start = None, end = None))]
     fn cat_file(&self, path: &str, start: Option<i64>, end: Option<i64>) -> PyResult<Vec<u8>> {
         self.inner
@@ -438,6 +442,10 @@ impl PySqliteDatabaseFs {
             .iter()
             .map(|protocol| protocol.to_string())
             .collect()
+    }
+
+    fn invalidate_cache(&self) {
+        self.inner.invalidate_cache();
     }
 
     #[pyo3(signature = (path, detail = true))]
@@ -550,6 +558,10 @@ impl PyPostgresDatabaseFs {
             .collect()
     }
 
+    fn invalidate_cache(&self) {
+        self.inner.invalidate_cache();
+    }
+
     #[pyo3(signature = (path, detail = true))]
     fn ls<'py>(&self, py: Python<'py>, path: &str, detail: bool) -> PyResult<Py<PyAny>> {
         let entries = py
@@ -658,6 +670,10 @@ impl PyMySqlDatabaseFs {
             .iter()
             .map(|protocol| protocol.to_string())
             .collect()
+    }
+
+    fn invalidate_cache(&self) {
+        self.inner.invalidate_cache();
     }
 
     #[pyo3(signature = (path, detail = true))]

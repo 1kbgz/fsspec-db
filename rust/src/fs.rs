@@ -1,6 +1,8 @@
+use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::io::{Read, Seek, SeekFrom};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use fsspec_rs::{
@@ -23,15 +25,116 @@ const PROTOCOLS: &[&str] = &["db"];
 
 pub struct DatabaseFs<D> {
     db: Arc<D>,
+    introspection_cache: Mutex<IntrospectionCache>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IntrospectionCacheOptions {
+    pub ttl: Option<Duration>,
+    pub max_entries: Option<usize>,
+}
+
+impl Default for IntrospectionCacheOptions {
+    fn default() -> Self {
+        Self {
+            ttl: Some(Duration::from_secs(300)),
+            max_entries: Some(1024),
+        }
+    }
+}
+
+#[derive(Clone)]
+enum CachedIntrospection {
+    Listing(Vec<FileInfo>),
+    Info(FileInfo),
+}
+
+struct CacheEntry {
+    inserted: Instant,
+    value: CachedIntrospection,
+}
+
+struct IntrospectionCache {
+    options: IntrospectionCacheOptions,
+    entries: HashMap<String, CacheEntry>,
+    recency: VecDeque<String>,
+}
+
+impl IntrospectionCache {
+    fn new(options: IntrospectionCacheOptions) -> Self {
+        Self {
+            options,
+            entries: HashMap::new(),
+            recency: VecDeque::new(),
+        }
+    }
+
+    fn get(&mut self, key: &str) -> Option<CachedIntrospection> {
+        let expired = self.entries.get(key).is_some_and(|entry| {
+            self.options
+                .ttl
+                .is_some_and(|ttl| entry.inserted.elapsed() >= ttl)
+        });
+        if expired {
+            self.entries.remove(key);
+            self.recency.retain(|candidate| candidate != key);
+            return None;
+        }
+        let value = self.entries.get(key)?.value.clone();
+        self.recency.retain(|candidate| candidate != key);
+        self.recency.push_back(key.to_string());
+        Some(value)
+    }
+
+    fn insert(&mut self, key: String, value: CachedIntrospection) {
+        if self.options.max_entries == Some(0) {
+            return;
+        }
+        self.recency.retain(|candidate| candidate != &key);
+        self.recency.push_back(key.clone());
+        self.entries.insert(
+            key,
+            CacheEntry {
+                inserted: Instant::now(),
+                value,
+            },
+        );
+        if let Some(max_entries) = self.options.max_entries {
+            while self.entries.len() > max_entries {
+                if let Some(oldest) = self.recency.pop_front() {
+                    self.entries.remove(&oldest);
+                }
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        self.entries.clear();
+        self.recency.clear();
+    }
 }
 
 impl<D> DatabaseFs<D> {
     pub fn new(db: D) -> Self {
-        Self { db: Arc::new(db) }
+        Self::with_cache_options(db, IntrospectionCacheOptions::default())
+    }
+
+    pub fn with_cache_options(db: D, cache_options: IntrospectionCacheOptions) -> Self {
+        Self {
+            db: Arc::new(db),
+            introspection_cache: Mutex::new(IntrospectionCache::new(cache_options)),
+        }
     }
 
     pub fn database(&self) -> &D {
         self.db.as_ref()
+    }
+
+    pub fn invalidate_cache(&self) {
+        self.introspection_cache
+            .lock()
+            .expect("introspection cache mutex poisoned")
+            .clear();
     }
 }
 
@@ -48,7 +151,21 @@ where
     }
 
     fn ls(&self, path: &str, _detail: bool) -> FsResult<Vec<FileInfo>> {
-        self.ls_db(path).map_err(FsError::from)
+        let key = format!("ls:{path}");
+        if let Some(CachedIntrospection::Listing(entries)) = self
+            .introspection_cache
+            .lock()
+            .expect("introspection cache mutex poisoned")
+            .get(&key)
+        {
+            return Ok(entries);
+        }
+        let entries = self.ls_db(path).map_err(FsError::from)?;
+        self.introspection_cache
+            .lock()
+            .expect("introspection cache mutex poisoned")
+            .insert(key, CachedIntrospection::Listing(entries.clone()));
+        Ok(entries)
     }
 
     fn rm_file(&self, path: &str) -> FsResult<()> {
@@ -78,7 +195,21 @@ where
     }
 
     fn info(&self, path: &str) -> FsResult<FileInfo> {
-        self.info_db(path).map_err(FsError::from)
+        let key = format!("info:{path}");
+        if let Some(CachedIntrospection::Info(info)) = self
+            .introspection_cache
+            .lock()
+            .expect("introspection cache mutex poisoned")
+            .get(&key)
+        {
+            return Ok(info);
+        }
+        let info = self.info_db(path).map_err(FsError::from)?;
+        self.introspection_cache
+            .lock()
+            .expect("introspection cache mutex poisoned")
+            .insert(key, CachedIntrospection::Info(info.clone()));
+        Ok(info)
     }
 
     fn mkdir(&self, path: &str, _create_parents: bool) -> FsResult<()> {
@@ -95,9 +226,14 @@ where
 
     fn put_file(&self, local: &str, remote: &str) -> FsResult<()> {
         let data = fs::read(local).map_err(FsError::from)?;
-        self.write_bytes(remote, &data, InsertMode::Truncate)
+        let result = self
+            .write_bytes(remote, &data, InsertMode::Truncate)
             .map(|_| ())
-            .map_err(FsError::from)
+            .map_err(FsError::from);
+        if result.is_ok() {
+            self.invalidate_cache();
+        }
+        result
     }
 }
 
@@ -106,7 +242,9 @@ where
     D: Database + 'static,
 {
     pub fn write_bytes(&self, path: &str, data: &[u8], mode: InsertMode) -> Result<u64> {
-        write_bytes_to_database(self.db.as_ref(), path, data, mode)
+        let written = write_bytes_to_database(self.db.as_ref(), path, data, mode)?;
+        self.invalidate_cache();
+        Ok(written)
     }
 
     fn ls_db(&self, path: &str) -> Result<Vec<FileInfo>> {
@@ -739,6 +877,7 @@ mod tests {
         inserts: Mutex<Vec<(String, String, InsertMode, usize)>>,
         queries: Mutex<Vec<String>>,
         batch_reads: Arc<Mutex<usize>>,
+        schema_reads: Arc<Mutex<usize>>,
     }
 
     impl MockDatabase {
@@ -747,6 +886,7 @@ mod tests {
                 inserts: Mutex::new(Vec::new()),
                 queries: Mutex::new(Vec::new()),
                 batch_reads: Arc::new(Mutex::new(0)),
+                schema_reads: Arc::new(Mutex::new(0)),
             }
         }
 
@@ -804,6 +944,7 @@ mod tests {
         }
 
         fn list_schemas(&self) -> Result<Vec<SchemaInfo>> {
+            *self.schema_reads.lock().unwrap() += 1;
             Ok(vec![SchemaInfo {
                 name: "main".to_string(),
                 catalog: None,
@@ -917,6 +1058,48 @@ mod tests {
             ));
             Ok(rows as u64)
         }
+    }
+
+    #[test]
+    fn caches_and_invalidates_introspection() {
+        let db = MockDatabase::new();
+        let reads = Arc::clone(&db.schema_reads);
+        let fs = DatabaseFs::with_cache_options(
+            db,
+            IntrospectionCacheOptions {
+                ttl: Some(Duration::from_secs(60)),
+                max_entries: Some(2),
+            },
+        );
+
+        fs.ls("/", true).unwrap();
+        fs.ls("/", true).unwrap();
+        assert_eq!(*reads.lock().unwrap(), 1);
+
+        fs.invalidate_cache();
+        fs.ls("/", true).unwrap();
+        assert_eq!(*reads.lock().unwrap(), 2);
+    }
+
+    #[test]
+    fn expires_and_evicts_introspection() {
+        let db = MockDatabase::new();
+        let reads = Arc::clone(&db.schema_reads);
+        let fs = DatabaseFs::with_cache_options(
+            db,
+            IntrospectionCacheOptions {
+                ttl: Some(Duration::ZERO),
+                max_entries: Some(1),
+            },
+        );
+
+        fs.ls("/", true).unwrap();
+        fs.ls("/", true).unwrap();
+        assert_eq!(*reads.lock().unwrap(), 2);
+
+        fs.info("/").unwrap();
+        fs.ls("/", true).unwrap();
+        assert_eq!(*reads.lock().unwrap(), 3);
     }
 
     #[test]

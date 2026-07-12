@@ -7,6 +7,7 @@ from pathlib import Path
 
 import fsspec
 import fsspec.config as fsspec_config
+import fsspec.dircache as fsspec_dircache
 import pyarrow as pa
 import pyarrow.csv as pacsv
 import pyarrow.ipc as ipc
@@ -240,6 +241,88 @@ def test_python_backend_conformance(filesystem_type):
     data = arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]}))
     fs.pipe_file("/main/users.arrow", data, mode="append")
     assert db.queries[-1] == "insert:main.users:append:1"
+
+
+@pytest.mark.parametrize("filesystem_type", [AbstractDatabaseFileSystem, PyDatabaseFileSystem])
+def test_python_backend_introspection_cache(filesystem_type):
+    class CountingDatabase(MockDatabase):
+        def __init__(self):
+            super().__init__()
+            self.schema_reads = 0
+
+        def list_schemas(self):
+            self.schema_reads += 1
+            return super().list_schemas()
+
+    db = CountingDatabase()
+    fs = filesystem_type(db, max_paths=2, listings_expiry_time=60, skip_instance_cache=True)
+
+    assert fs.ls("/", detail=False) == ["/main"]
+    assert fs.ls("/", detail=False) == ["/main"]
+    assert db.schema_reads == 1
+
+    fs.ls("/", detail=False, refresh=True)
+    assert db.schema_reads == 2
+
+    fs.invalidate_cache()
+    fs.ls("/", detail=False)
+    assert db.schema_reads == 3
+
+    data = arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]}))
+    fs.pipe_file("/main/users.arrow", data, mode="append")
+    fs.ls("/", detail=False)
+    assert db.schema_reads == 4
+
+
+def test_introspection_cache_expires_and_evicts(monkeypatch):
+    class CountingDatabase(MockDatabase):
+        def __init__(self):
+            super().__init__()
+            self.schema_reads = 0
+
+        def list_schemas(self):
+            self.schema_reads += 1
+            return super().list_schemas()
+
+    now = 100.0
+    monkeypatch.setattr(fsspec_dircache.time, "time", lambda: now)
+    db = CountingDatabase()
+    fs = PyDatabaseFileSystem(db, max_paths=1, listings_expiry_time=10, skip_instance_cache=True)
+
+    fs.ls("/")
+    now = 111.0
+    fs.ls("/")
+    assert db.schema_reads == 2
+
+    fs.ls("/main")
+    fs.ls("/")
+    assert db.schema_reads == 3
+
+
+def test_native_filesystem_uses_introspection_cache(monkeypatch):
+    class FakeRustFs:
+        def __init__(self, *args, **kwargs):
+            self.list_calls = 0
+            self.info_calls = 0
+
+        def ls(self, path, detail=True):
+            self.list_calls += 1
+            return [{"name": "/main", "size": 0, "type": "directory"}]
+
+        def info(self, path):
+            self.info_calls += 1
+            return {"name": path, "size": 0, "type": "directory"}
+
+    monkeypatch.setattr(sqlite_mod._rust, "RustSqliteDatabaseFs", FakeRustFs)
+    fs = SQLiteDatabaseFileSystem(database=":memory:", skip_instance_cache=True)
+
+    fs.ls("/")
+    fs.ls("/")
+    fs.info("/main")
+    fs.info("/main")
+
+    assert fs._rust.list_calls == 1
+    assert fs._rust.info_calls == 1
 
 
 def test_direct_python_filesystem_discards_failed_write():
