@@ -13,7 +13,7 @@ import pyarrow.ipc as ipc
 import pyarrow.json as pajson
 import pyarrow.parquet as pq
 
-from .spec import AbstractDatabase, IntrospectionCacheMixin, _validate_open_mode
+from .spec import AbstractDatabase, DatabaseDdlMixin, IntrospectionCacheMixin, _validate_open_mode
 
 _FORMATS = {"arrow", "parquet", "csv", "jsonl", "sql"}
 _FACETS = {"columns", "indexes", "constraints", "depends_on"}
@@ -50,7 +50,7 @@ class _WriteBuffer(io.BytesIO):
         super().close()
 
 
-class PyDatabaseFileSystem(IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """Direct Python filesystem adapter for an :class:`AbstractDatabase`.
 
     Unlike ``AbstractDatabaseFileSystem``, this class does not call the Rust bridge. It is

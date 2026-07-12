@@ -949,3 +949,26 @@ def test_sqlite_filesystem_rejects_unknown_insert_column(tmp_path):
         assert "column not found" in str(exc)
     else:
         raise AssertionError("unknown insert columns should become ValueError")
+
+
+def test_sqlite_filesystem_guards_and_executes_ddl(tmp_path):
+    database = tmp_path / "ddl.sqlite"
+    disabled = SQLiteDatabaseFileSystem(database=str(database), skip_instance_cache=True)
+
+    with pytest.raises(PermissionError, match="allow_ddl=True"):
+        disabled.mkdir("/main/users", schema=pa.schema([pa.field("id", pa.int64(), nullable=False)]))
+
+    fs = SQLiteDatabaseFileSystem(database=str(database), allow_ddl=True, skip_instance_cache=True)
+    fs.mkdir(
+        "/main/users",
+        schema=pa.schema([pa.field("id", pa.int64(), nullable=False), pa.field("name", pa.string())]),
+    )
+    assert fs.info("/main/users")["kind"] == "table"
+
+    fs.mv("/main/users", "/main/people")
+    fs.pipe_file("/main/people.arrow", arrow_stream_bytes(pa.table({"id": [1], "name": ["ada"]})), mode="append")
+    fs.rm_file("/main/people.arrow")
+    assert fs.query("SELECT count(*) AS count FROM people").column("count").to_pylist() == [0]
+
+    fs.rm("/main/people")
+    assert not fs.exists("/main/people")

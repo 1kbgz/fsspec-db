@@ -6,12 +6,12 @@ from typing import Any
 
 import fsspec
 
-from .spec import IntrospectionCacheMixin, _binary_mode, _copy_local_to_rust_file, _validate_open_mode
+from .spec import DatabaseDdlMixin, IntrospectionCacheMixin, _binary_mode, _copy_local_to_rust_file, _validate_open_mode
 
 _rust = import_module(".fsspec_db", __package__)
 
 
-class SQLiteDatabaseFileSystem(IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class SQLiteDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """SQLite-backed fsspec filesystem registered as ``db+sqlite``.
 
     Overwrite writes replace table contents; use append mode to preserve rows.

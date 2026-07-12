@@ -63,6 +63,112 @@ class IntrospectionCacheMixin:
         super().invalidate_cache(path)
 
 
+class DatabaseDdlMixin:
+    """Guarded database DDL mapped onto fsspec mutation methods."""
+
+    def mkdir(self, path: str, create_parents: bool = True, **kwargs: Any) -> None:
+        self._require_ddl()
+        schema_name, relation, extension = _ddl_path(path)
+        if relation is None or extension is not None:
+            raise ValueError("mkdir requires a /schema/relation path")
+        sql = kwargs.get("sql")
+        if sql is None:
+            arrow_schema = kwargs.get("schema")
+            if arrow_schema is None:
+                raise ValueError("mkdir requires schema=pyarrow.Schema or sql=CREATE TABLE ...")
+            columns = ", ".join(
+                f"{_quote_ddl_identifier(self, field.name)} {_arrow_type_to_sql(field.type)}"
+                + ("" if field.nullable else " NOT NULL")
+                for field in arrow_schema
+            )
+            sql = (
+                f"CREATE TABLE {_quote_ddl_identifier(self, schema_name)}."
+                f"{_quote_ddl_identifier(self, relation)} ({columns})"
+            )
+        self.query(sql)
+        self.invalidate_cache(path)
+
+    def rm_file(self, path: str) -> None:
+        self._require_ddl()
+        schema, relation, extension = _ddl_path(path)
+        if relation is None:
+            raise ValueError("database removal requires a relation path")
+        target = f"{_quote_ddl_identifier(self, schema)}.{_quote_ddl_identifier(self, relation)}"
+        if extension is not None:
+            self.query(f"DELETE FROM {target}")
+        else:
+            kind = self.info(path).get("kind", "table").upper()
+            self.query(f"DROP {kind} {target}")
+        self.invalidate_cache(path)
+
+    def mv(self, path1: str, path2: str, recursive: bool = False, maxdepth: int | None = None, **kwargs: Any) -> None:
+        self._require_ddl()
+        source_schema, source, source_extension = _ddl_path(path1)
+        target_schema, target, target_extension = _ddl_path(path2)
+        if None in {source, target} or source_extension is not None or target_extension is not None:
+            raise ValueError("database rename requires relation paths")
+        if source_schema != target_schema:
+            raise NotImplementedError("cross-schema relation moves are not supported")
+        old = f"{_quote_ddl_identifier(self, source_schema)}.{_quote_ddl_identifier(self, source)}"
+        if _ddl_dialect(self) == "mysql":
+            new = f"{_quote_ddl_identifier(self, target_schema)}.{_quote_ddl_identifier(self, target)}"
+            sql = f"RENAME TABLE {old} TO {new}"
+        else:
+            sql = f"ALTER TABLE {old} RENAME TO {_quote_ddl_identifier(self, target)}"
+        self.query(sql)
+        self.invalidate_cache(path1)
+
+    def _require_ddl(self) -> None:
+        if not self.storage_options.get("allow_ddl", False):
+            raise PermissionError("database DDL is disabled; construct the filesystem with allow_ddl=True")
+
+
+def _ddl_path(path: str) -> tuple[str, str | None, str | None]:
+    clean = path.split("?", 1)[0].strip("/")
+    parts = clean.split("/") if clean else []
+    if len(parts) not in {1, 2}:
+        raise ValueError(f"unsupported database DDL path: {path}")
+    if len(parts) == 1:
+        return parts[0], None, None
+    relation, dot, extension = parts[1].rpartition(".")
+    return parts[0], relation if dot else parts[1], extension if dot else None
+
+
+def _ddl_dialect(fs: Any) -> str:
+    db = getattr(fs, "db", None)
+    if db is not None:
+        return db.dialect()
+    protocol = fs.protocol[0] if isinstance(fs.protocol, tuple) else fs.protocol
+    return {"db+postgres": "postgres", "db+postgresql": "postgres", "db+mysql": "mysql"}.get(protocol, "generic")
+
+
+def _quote_ddl_identifier(fs: Any, name: str) -> str:
+    quote = "`" if _ddl_dialect(fs) == "mysql" else '"'
+    return quote + name.replace(quote, quote * 2) + quote
+
+
+def _arrow_type_to_sql(data_type: Any) -> str:
+    import pyarrow as pa
+
+    if pa.types.is_boolean(data_type):
+        return "BOOLEAN"
+    if pa.types.is_integer(data_type):
+        return "BIGINT"
+    if pa.types.is_floating(data_type):
+        return "DOUBLE"
+    if pa.types.is_decimal(data_type):
+        return f"DECIMAL({data_type.precision}, {data_type.scale})"
+    if pa.types.is_binary(data_type) or pa.types.is_large_binary(data_type):
+        return "BLOB"
+    if pa.types.is_date(data_type):
+        return "DATE"
+    if pa.types.is_timestamp(data_type):
+        return "TIMESTAMP"
+    if pa.types.is_string(data_type) or pa.types.is_large_string(data_type):
+        return "VARCHAR"
+    raise TypeError(f"unsupported Arrow type for database DDL: {data_type}")
+
+
 class AbstractDatabase(abc.ABC):
     """Database primitive contract for Python-defined backends.
 
@@ -123,7 +229,7 @@ class AbstractDatabase(abc.ABC):
         raise NotImplementedError
 
 
-class AbstractDatabaseFileSystem(IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class AbstractDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """fsspec filesystem adapter for an :class:`AbstractDatabase` implementation."""
 
     protocol = "db"

@@ -89,6 +89,8 @@ class SQLAlchemyDatabase(AbstractDatabase):
 
         with self.engine.connect() as connection:
             result = connection.exec_driver_sql(sql, tuple(params or ())) if params else connection.execute(text(sql))
+            if not result.returns_rows:
+                return pa.table({})
             names = list(result.keys())
             rows = [dict(row._mapping) for row in result]
         if rows:

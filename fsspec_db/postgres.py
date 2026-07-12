@@ -7,12 +7,12 @@ from urllib.parse import quote, urlencode
 
 import fsspec
 
-from .spec import IntrospectionCacheMixin, _binary_mode, _copy_local_to_rust_file, _validate_open_mode
+from .spec import DatabaseDdlMixin, IntrospectionCacheMixin, _binary_mode, _copy_local_to_rust_file, _validate_open_mode
 
 _rust = import_module(".fsspec_db", __package__)
 
 
-class PostgresDatabaseFileSystem(IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class PostgresDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """PostgreSQL-backed fsspec filesystem registered as ``db+postgresql``."""
 
     protocol = ("db+postgresql", "db+postgres")
