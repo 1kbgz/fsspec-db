@@ -239,6 +239,7 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">abc</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">importlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">import_module</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
@@ -559,7 +560,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">put_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">rpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">callback</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;overwrite&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;create&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">rpath</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">FileExistsError</span><span class="p">(</span><span class="n">rpath</span><span class="p">)</span>
-        <span class="n">_copy_local_to_rust_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rust</span><span class="p">,</span> <span class="n">lpath</span><span class="p">,</span> <span class="n">rpath</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;append&quot;</span> <span class="k">else</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span>
+        <span class="n">_copy_local_to_rust_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rust</span><span class="p">,</span> <span class="n">lpath</span><span class="p">,</span> <span class="n">rpath</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;append&quot;</span> <span class="k">else</span> <span class="s2">&quot;wb&quot;</span><span class="p">,</span> <span class="n">callback</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">invalidate_cache</span><span class="p">(</span><span class="n">rpath</span><span class="p">)</span></div>
 
 
@@ -575,17 +576,47 @@
         <span class="n">_validate_open_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">autocommit</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">_WRITE_OPEN_MODES</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">invalidate_cache</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">autocommit</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">DeferredDatabaseFile</span><span class="p">(</span><span class="k">lambda</span> <span class="n">data</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">_binary_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)))</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">_binary_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">))</span></div>
 
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_copy_local_to_rust_file</span><span class="p">(</span><span class="n">rust_fs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">lpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">rpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DeferredDatabaseFile</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write buffer committed or discarded by ``fsspec.Transaction``.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">commit</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_commit_callback</span> <span class="o">=</span> <span class="n">commit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_commit_callback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getvalue</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_copy_local_to_rust_file</span><span class="p">(</span><span class="n">rust_fs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">lpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">rpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">callback</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">callback</span><span class="o">.</span><span class="n">set_size</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">lpath</span><span class="p">))</span>
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">lpath</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">source</span><span class="p">,</span> <span class="n">rust_fs</span><span class="o">.</span><span class="n">open_file</span><span class="p">(</span><span class="n">rpath</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span> <span class="k">as</span> <span class="n">target</span><span class="p">:</span>
         <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
             <span class="n">chunk</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">_DEFAULT_COPY_BLOCK_SIZE</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk</span><span class="p">:</span>
                 <span class="k">break</span>
             <span class="n">target</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">callback</span><span class="o">.</span><span class="n">relative_update</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">))</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_validate_open_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">autocommit</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -593,8 +624,6 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;exclusive create is not supported for database relation writes&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_SUPPORTED_OPEN_MODES</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;database file mode is not supported: </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">autocommit</span> <span class="ow">and</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">_WRITE_OPEN_MODES</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;autocommit=False is not supported for database relation writes&quot;</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_binary_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
