@@ -19,6 +19,41 @@ DBFile = _rust.RustDbFile
 _DEFAULT_COPY_BLOCK_SIZE = 1024 * 1024
 _SUPPORTED_OPEN_MODES = {"rb", "r", "wb", "w", "ab", "a"}
 _WRITE_OPEN_MODES = {"wb", "w", "ab", "a"}
+_INFO_CACHE_PREFIX = "__fsspec_db_info__:"
+
+
+class IntrospectionCacheMixin:
+    """Cache database listings and metadata using fsspec's bounded TTL cache."""
+
+    def _cached_ls(self, path: str, detail: bool, loader: Any, refresh: bool = False) -> list[Any]:
+        key = path.rstrip("/") or self.root_marker
+        entries = None
+        if not refresh:
+            try:
+                entries = self.dircache[key]
+            except KeyError:
+                pass
+        if entries is None:
+            entries = loader(path, True)
+            self.dircache[key] = entries
+        return entries if detail else [entry["name"] for entry in entries]
+
+    def _cached_info(self, path: str, loader: Any, refresh: bool = False) -> dict[str, Any]:
+        key = _INFO_CACHE_PREFIX + (path.rstrip("/") or self.root_marker)
+        entries = None
+        if not refresh:
+            try:
+                entries = self.dircache[key]
+            except KeyError:
+                pass
+        if entries is None:
+            entries = [loader(path)]
+            self.dircache[key] = entries
+        return entries[0]
+
+    def invalidate_cache(self, path: str | None = None) -> None:
+        self.dircache.clear()
+        super().invalidate_cache(path)
 
 
 class AbstractDatabase(abc.ABC):
@@ -81,7 +116,7 @@ class AbstractDatabase(abc.ABC):
         raise NotImplementedError
 
 
-class AbstractDatabaseFileSystem(fsspec.AbstractFileSystem):
+class AbstractDatabaseFileSystem(IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """fsspec filesystem adapter for an :class:`AbstractDatabase` implementation."""
 
     protocol = "db"
@@ -93,10 +128,10 @@ class AbstractDatabaseFileSystem(fsspec.AbstractFileSystem):
         self._rust = _rust.RustDatabaseFs(db)
 
     def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[dict[str, Any]] | list[str]:
-        return self._rust.ls(path, detail)
+        return self._cached_ls(path, detail, self._rust.ls, kwargs.get("refresh", False))
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
-        return self._rust.info(path)
+        return self._cached_info(path, self._rust.info, kwargs.get("refresh", False))
 
     def cat_file(
         self,
@@ -117,7 +152,9 @@ class AbstractDatabaseFileSystem(fsspec.AbstractFileSystem):
         return io.BytesIO(self._rust.query_arrow(sql, params))
 
     def _write_file(self, path: str, data: bytes, mode: str) -> int:
-        return self._rust.write_file(path, data, mode)
+        written = self._rust.write_file(path, data, mode)
+        self.invalidate_cache(path)
+        return written
 
     def pipe_file(self, path: str, value: bytes, mode: str = "overwrite", **kwargs: Any) -> None:
         if mode == "create" and self.exists(path):
@@ -128,6 +165,7 @@ class AbstractDatabaseFileSystem(fsspec.AbstractFileSystem):
         if mode == "create" and self.exists(rpath):
             raise FileExistsError(rpath)
         _copy_local_to_rust_file(self._rust, lpath, rpath, "ab" if mode == "append" else "wb")
+        self.invalidate_cache(rpath)
 
     def _open(
         self,
@@ -139,6 +177,8 @@ class AbstractDatabaseFileSystem(fsspec.AbstractFileSystem):
         **kwargs: Any,
     ) -> Any:
         _validate_open_mode(mode, autocommit)
+        if mode in _WRITE_OPEN_MODES:
+            self.invalidate_cache(path)
         return self._rust.open_file(path, _binary_mode(mode))
 
 

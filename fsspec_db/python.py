@@ -13,7 +13,7 @@ import pyarrow.ipc as ipc
 import pyarrow.json as pajson
 import pyarrow.parquet as pq
 
-from .spec import AbstractDatabase, _validate_open_mode
+from .spec import AbstractDatabase, IntrospectionCacheMixin, _validate_open_mode
 
 _FORMATS = {"arrow", "parquet", "csv", "jsonl", "sql"}
 _FACETS = {"columns", "indexes", "constraints", "depends_on"}
@@ -50,7 +50,7 @@ class _WriteBuffer(io.BytesIO):
         super().close()
 
 
-class PyDatabaseFileSystem(fsspec.AbstractFileSystem):
+class PyDatabaseFileSystem(IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """Direct Python filesystem adapter for an :class:`AbstractDatabase`.
 
     Unlike ``AbstractDatabaseFileSystem``, this class does not call the Rust bridge. It is
@@ -65,6 +65,9 @@ class PyDatabaseFileSystem(fsspec.AbstractFileSystem):
         self.db = db
 
     def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[dict[str, Any]] | list[str]:
+        return self._cached_ls(path, detail, self._ls_uncached, kwargs.get("refresh", False))
+
+    def _ls_uncached(self, path: str, detail: bool = True) -> list[dict[str, Any]]:
         parsed = _parse_path(path)
         if parsed.kind == "root":
             entries = [_schema_info(info) for info in self.db.list_schemas()]
@@ -85,9 +88,12 @@ class PyDatabaseFileSystem(fsspec.AbstractFileSystem):
             entries = self._facet_entries(parsed)
         else:
             raise NotADirectoryError(path)
-        return entries if detail else [entry["name"] for entry in entries]
+        return entries
 
     def info(self, path: str, **kwargs: Any) -> dict[str, Any]:
+        return self._cached_info(path, self._info_uncached, kwargs.get("refresh", False))
+
+    def _info_uncached(self, path: str) -> dict[str, Any]:
         parsed = _parse_path(path)
         if parsed.kind == "root":
             return _directory("/")
@@ -170,7 +176,9 @@ class PyDatabaseFileSystem(fsspec.AbstractFileSystem):
         relation = self.db.relation_info(parsed.schema, parsed.relation)
         if relation.kind != "table":
             raise NotImplementedError("database writes require a table path")
-        return self.db.insert(parsed.schema, parsed.relation, _decode(data, parsed.format), mode)
+        written = self.db.insert(parsed.schema, parsed.relation, _decode(data, parsed.format), mode)
+        self.invalidate_cache(path)
+        return written
 
     def _ensure_schema(self, schema: str | None) -> Any:
         for info in self.db.list_schemas():
