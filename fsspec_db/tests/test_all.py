@@ -3,7 +3,9 @@ import io
 import json
 import re
 import sqlite3
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import fsspec
 import fsspec.config as fsspec_config
@@ -23,8 +25,10 @@ from fsspec_db import (
     AbstractDatabaseFileSystem,
     ColumnInfo,
     ConstraintInfo,
+    DuckDBDatabaseFileSystem,
     IndexInfo,
     MySQLDatabaseFileSystem,
+    OdbcDatabase,
     PostgresDatabaseFileSystem,
     PyDatabaseFileSystem,
     RelationInfo,
@@ -355,6 +359,42 @@ def test_sqlalchemy_python_backend_and_registration(tmp_path):
     fs.pipe_file("/main/users.arrow", arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]})), mode="append")
     assert fs.query("SELECT count(*) AS count FROM users").column("count").to_pylist() == [3]
     assert fsspec.get_filesystem_class("db+sqlalchemy") is SQLAlchemyDatabaseFileSystem
+
+
+def test_duckdb_backend_round_trips(tmp_path):
+    pytest.importorskip("duckdb")
+    fs = DuckDBDatabaseFileSystem(str(tmp_path / "app.duckdb"), skip_instance_cache=True)
+    fs.db.connection.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, name VARCHAR)")
+    fs.db.connection.execute("INSERT INTO users VALUES (1, 'ada'), (2, 'grace')")
+
+    assert fs.info("/main/users")["kind"] == "table"
+    assert fs.info("/main/users/columns/id")["primary_key"] is True
+    assert fs.query("SELECT name FROM users ORDER BY id").column("name").to_pylist() == ["ada", "grace"]
+    fs.pipe_file("/main/users.arrow", arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]})), mode="append")
+    assert fs.query("SELECT count(*) AS count FROM users").column("count").to_pylist() == [3]
+    assert fsspec.get_filesystem_class("db+duckdb") is DuckDBDatabaseFileSystem
+
+
+def test_odbc_backend_uses_arrow_odbc(monkeypatch):
+    table = pa.table({"value": [1, 2]})
+
+    class FakeConnection:
+        def __init__(self):
+            self.inserts = []
+
+        def read_arrow_batches(self, **kwargs):
+            return pa.RecordBatchReader.from_batches(table.schema, table.to_batches())
+
+        def insert_into_table(self, **kwargs):
+            self.inserts.append(kwargs)
+
+    connection = FakeConnection()
+    monkeypatch.setitem(sys.modules, "arrow_odbc", SimpleNamespace(connect=lambda **kwargs: connection))
+    db = OdbcDatabase("Driver=Fake")
+
+    assert db.query("SELECT value").equals(table)
+    assert db.insert("main", "users", table) == 2
+    assert connection.inserts[0]["table"] == "main.users"
 
 
 def test_native_filesystems_expose_query_helpers(monkeypatch):

@@ -1,4 +1,6 @@
+from .duckdb import DuckDBDatabase, DuckDBDatabaseFileSystem
 from .mysql import MySQLDatabaseFileSystem
+from .odbc import OdbcDatabase, OdbcDatabaseFileSystem
 from .postgres import PostgresDatabaseFileSystem
 from .python import PyDatabaseFileSystem
 from .spec import (
@@ -22,8 +24,12 @@ __all__ = [
     "ColumnInfo",
     "ConstraintInfo",
     "DBFile",
+    "DuckDBDatabase",
+    "DuckDBDatabaseFileSystem",
     "IndexInfo",
     "MySQLDatabaseFileSystem",
+    "OdbcDatabase",
+    "OdbcDatabaseFileSystem",
     "PostgresDatabaseFileSystem",
     "PyDatabaseFileSystem",
     "RelationInfo",
