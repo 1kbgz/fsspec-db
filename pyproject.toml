@@ -13,7 +13,7 @@ authors = [
 description = "Database handling for fsspec filesystems"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.11"
 keywords = []
 
@@ -89,7 +89,7 @@ Repository = "https://github.com/1kbgz/fsspec-db"
 Homepage = "https://github.com/1kbgz/fsspec-db"
 
 [tool.bumpversion]
-current_version = "0.2.0"
+current_version = "0.3.0"
 commit = true
 tag = false 
 commit_args = "-s"
