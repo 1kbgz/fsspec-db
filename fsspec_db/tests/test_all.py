@@ -207,6 +207,15 @@ def test_python_filesystem_applies_query_params():
     assert db.queries == ['SELECT "id", "name" FROM "main"."users" LIMIT 1']
 
 
+def test_python_filesystem_applies_offset_query_param():
+    db = MockDatabase()
+    fs = PyDatabaseFileSystem(db)
+
+    fs.cat_file("/main/users.jsonl?limit=1&offset=2")
+
+    assert db.queries == ['SELECT * FROM "main"."users" LIMIT 1 OFFSET 2']
+
+
 def test_python_filesystem_open_query_passes_params():
     db = MockDatabase()
     fs = AbstractDatabaseFileSystem(db)
@@ -365,13 +374,17 @@ def test_duckdb_backend_round_trips(tmp_path):
     pytest.importorskip("duckdb")
     fs = DuckDBDatabaseFileSystem(str(tmp_path / "app.duckdb"), skip_instance_cache=True)
     fs.db.connection.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, name VARCHAR)")
-    fs.db.connection.execute("INSERT INTO users VALUES (1, 'ada'), (2, 'grace')")
+    fs.db.connection.execute("INSERT INTO users VALUES (1, 'ada'), (2, 'grace'), (4, 'ada')")
+    fs.db.connection.execute("CREATE TABLE categories AS SELECT range AS value FROM range(150)")
 
     assert fs.info("/main/users")["kind"] == "table"
     assert fs.info("/main/users/columns/id")["primary_key"] is True
-    assert fs.query("SELECT name FROM users ORDER BY id").column("name").to_pylist() == ["ada", "grace"]
+    assert json.loads(fs.cat_file("/main/users/columns/name")) == ["ada", "grace"]
+    assert json.loads(fs.cat_file("/main/categories/columns/value")) == list(range(100))
+    assert json.loads(fs.cat_file("/main/categories/columns/value?limit=10&offset=100")) == list(range(100, 110))
+    assert fs.query("SELECT name FROM users ORDER BY id").column("name").to_pylist() == ["ada", "grace", "ada"]
     fs.pipe_file("/main/users.arrow", arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]})), mode="append")
-    assert fs.query("SELECT count(*) AS count FROM users").column("count").to_pylist() == [3]
+    assert fs.query("SELECT count(*) AS count FROM users").column("count").to_pylist() == [4]
     assert fsspec.get_filesystem_class("db+duckdb") is DuckDBDatabaseFileSystem
 
 

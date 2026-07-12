@@ -168,12 +168,30 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
         parsed = _parse_path(path)
         if parsed.kind == "definition":
             return self.db.view_definition(parsed.schema, parsed.relation).encode()
+        if parsed.kind == "facet" and parsed.format == "columns" and parsed.item is not None:
+            return self._read_column_values(parsed)
         if parsed.kind != "data":
             raise IsADirectoryError(path)
         if parsed.format == "sql":
             raise NotImplementedError("DDL rendering is not supported by the direct Python adapter")
         sql = _select_sql(self.db.dialect(), parsed)
         return _encode(self.db.query(sql), parsed.format)
+
+    def _read_column_values(self, parsed: _Path) -> bytes:
+        self._info_uncached(f"/{parsed.schema}/{parsed.relation}/columns/{parsed.item}")
+        limit = dict(parsed.query).get("limit", "100")
+        if not limit.isdigit():
+            raise ValueError("limit must be a non-negative integer")
+        offset = dict(parsed.query).get("offset", "0")
+        if not offset.isdigit():
+            raise ValueError("offset must be a non-negative integer")
+        dialect = self.db.dialect()
+        column = _quote(dialect, parsed.item)
+        relation = f"{_quote(dialect, parsed.schema)}.{_quote(dialect, parsed.relation)}"
+        table = self.db.query(
+            f"SELECT DISTINCT {column} FROM {relation} ORDER BY {column} LIMIT {limit} OFFSET {offset}"
+        )
+        return json.dumps(table.column(0).to_pylist(), default=str).encode()
 
     def _write(self, path: str, data: bytes, mode: str) -> int:
         parsed = _parse_path(path)
@@ -199,6 +217,7 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
                 _file(
                     f"{base}/{info.name}",
                     0,
+                    kind="column",
                     data_type=info.data_type,
                     nullable=info.nullable,
                     default=info.default,
@@ -268,6 +287,10 @@ def _select_sql(dialect: str, path: _Path) -> str:
         if not limit.isdigit():
             raise ValueError("limit must be a non-negative integer")
         sql += f" LIMIT {limit}"
+    if offset := options.get("offset"):
+        if not offset.isdigit():
+            raise ValueError("offset must be a non-negative integer")
+        sql += f" OFFSET {offset}"
     return sql
 
 
