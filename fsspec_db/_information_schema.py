@@ -17,14 +17,10 @@ def list_schemas(query: Query) -> list[SchemaInfo]:
 
 def list_relations(query: Query, schema: str) -> list[RelationInfo]:
     table = query(
-        "SELECT table_name, table_type FROM information_schema.tables "
-        "WHERE table_schema = ? ORDER BY table_name",
+        "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = ? ORDER BY table_name",
         [schema],
     )
-    return [
-        RelationInfo(row["table_name"], "view" if "VIEW" in row["table_type"].upper() else "table")
-        for row in table.to_pylist()
-    ]
+    return [RelationInfo(row["table_name"], "view" if "VIEW" in row["table_type"].upper() else "table") for row in table.to_pylist()]
 
 
 def relation_info(query: Query, schema: str, relation: str) -> RelationInfo:
@@ -79,9 +75,4 @@ def list_constraints(query: Query, schema: str, relation: str) -> list[Constrain
 
 
 def _primary_key_columns(query: Query, schema: str, relation: str) -> set[str]:
-    return {
-        column
-        for constraint in list_constraints(query, schema, relation)
-        if constraint.kind == "pk"
-        for column in constraint.columns
-    }
+    return {column for constraint in list_constraints(query, schema, relation) if constraint.kind == "pk" for column in constraint.columns}

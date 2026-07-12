@@ -78,14 +78,10 @@ class DatabaseDdlMixin:
             if arrow_schema is None:
                 raise ValueError("mkdir requires schema=pyarrow.Schema or sql=CREATE TABLE ...")
             columns = ", ".join(
-                f"{_quote_ddl_identifier(self, field.name)} {_arrow_type_to_sql(field.type)}"
-                + ("" if field.nullable else " NOT NULL")
+                f"{_quote_ddl_identifier(self, field.name)} {_arrow_type_to_sql(field.type)}" + ("" if field.nullable else " NOT NULL")
                 for field in arrow_schema
             )
-            sql = (
-                f"CREATE TABLE {_quote_ddl_identifier(self, schema_name)}."
-                f"{_quote_ddl_identifier(self, relation)} ({columns})"
-            )
+            sql = f"CREATE TABLE {_quote_ddl_identifier(self, schema_name)}.{_quote_ddl_identifier(self, relation)} ({columns})"
         self.query(sql)
         self.invalidate_cache(path)
 
