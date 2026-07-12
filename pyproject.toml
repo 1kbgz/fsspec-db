@@ -42,9 +42,16 @@ docs = [
     "yardang",
 ]
 integration = [
+    "duckdb>=1.4",
     "psycopg[binary]",
     "pymysql",
     "sqlalchemy>=2",
+]
+duckdb = [
+    "duckdb>=1.4",
+]
+odbc = [
+    "arrow-odbc>=9",
 ]
 develop = [
     "build",
@@ -74,6 +81,8 @@ develop = [
 "db+postgresql" = "fsspec_db.postgres.PostgresDatabaseFileSystem"
 "db+sqlite" = "fsspec_db.sqlite.SQLiteDatabaseFileSystem"
 "db+sqlalchemy" = "fsspec_db.sqlalchemy.SQLAlchemyDatabaseFileSystem"
+"db+duckdb" = "fsspec_db.duckdb.DuckDBDatabaseFileSystem"
+"db+odbc" = "fsspec_db.odbc.OdbcDatabaseFileSystem"
 
 [project.urls]
 Repository = "https://github.com/1kbgz/fsspec-db"
