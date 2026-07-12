@@ -188,9 +188,7 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
         dialect = self.db.dialect()
         column = _quote(dialect, parsed.item)
         relation = f"{_quote(dialect, parsed.schema)}.{_quote(dialect, parsed.relation)}"
-        table = self.db.query(
-            f"SELECT DISTINCT {column} FROM {relation} ORDER BY {column} LIMIT {limit} OFFSET {offset}"
-        )
+        table = self.db.query(f"SELECT DISTINCT {column} FROM {relation} ORDER BY {column} LIMIT {limit} OFFSET {offset}")
         return json.dumps(table.column(0).to_pylist(), default=str).encode()
 
     def _write(self, path: str, data: bytes, mode: str) -> int:
