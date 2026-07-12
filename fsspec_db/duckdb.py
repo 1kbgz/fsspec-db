@@ -34,8 +34,7 @@ class DuckDBDatabase(AbstractDatabase):
 
     def list_indexes(self, schema: str, relation: str):
         table = self.query(
-            "SELECT index_name, expressions, is_unique FROM duckdb_indexes() "
-            "WHERE schema_name = ? AND table_name = ? ORDER BY index_name",
+            "SELECT index_name, expressions, is_unique FROM duckdb_indexes() WHERE schema_name = ? AND table_name = ? ORDER BY index_name",
             [schema, relation],
         )
         return [IndexInfo(row["index_name"], row["expressions"] or [], row["is_unique"], None) for row in table.to_pylist()]
