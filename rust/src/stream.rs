@@ -3,11 +3,10 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::sync::{Arc, Mutex};
 
 use arrow::csv::writer::{Writer as CsvWriter, WriterBuilder as CsvWriterBuilder};
-use arrow::ipc::writer::StreamWriter;
 use arrow::json::writer::LineDelimitedWriter;
 use arrow::record_batch::RecordBatch;
+use fsspec_data::{CodecWriter, DataFormat as InterchangeFormat, DEFAULT_REGISTRY};
 use fsspec_rs::{FileInfo, FsFile, FsResult};
-use parquet::arrow::ArrowWriter;
 
 use crate::database::RecordBatchStream;
 use crate::path::DataFormat;
@@ -44,8 +43,7 @@ impl Write for SharedBuffer {
 }
 
 enum FormatEncoder {
-    Parquet(ArrowWriter<SharedBuffer>),
-    Arrow(StreamWriter<SharedBuffer>),
+    Interchange(Option<Box<dyn CodecWriter>>),
     Csv(Box<CsvWriter<SharedBuffer>>),
     Jsonl(LineDelimitedWriter<SharedBuffer>),
 }
@@ -54,8 +52,17 @@ impl FormatEncoder {
     fn new(format: DataFormat, reader: &RecordBatchStream, sink: SharedBuffer) -> Result<Self> {
         let schema = reader.schema();
         match format {
-            DataFormat::Parquet => Ok(Self::Parquet(ArrowWriter::try_new(sink, schema, None)?)),
-            DataFormat::Arrow => Ok(Self::Arrow(StreamWriter::try_new(sink, &schema)?)),
+            DataFormat::Parquet | DataFormat::Arrow => {
+                let format = match format {
+                    DataFormat::Parquet => InterchangeFormat::Parquet,
+                    DataFormat::Arrow => InterchangeFormat::Arrow,
+                    _ => unreachable!(),
+                };
+                let writer = DEFAULT_REGISTRY
+                    .get(format)?
+                    .start_owned_writer(schema, Box::new(sink))?;
+                Ok(Self::Interchange(Some(writer)))
+            }
             DataFormat::Csv => Ok(Self::Csv(Box::new(
                 CsvWriterBuilder::new().with_header(true).build(sink),
             ))),
@@ -68,14 +75,8 @@ impl FormatEncoder {
 
     fn write_batch(&mut self, batch: &RecordBatch) -> Result<()> {
         match self {
-            Self::Parquet(writer) => {
-                writer.write(batch)?;
-                writer.flush()?;
-            }
-            Self::Arrow(writer) => {
-                writer.write(batch)?;
-                writer.flush()?;
-            }
+            Self::Interchange(Some(writer)) => writer.write_batch(batch)?,
+            Self::Interchange(None) => unreachable!(),
             Self::Csv(writer) => writer.write(batch)?,
             Self::Jsonl(writer) => writer.write(batch)?,
         }
@@ -84,10 +85,11 @@ impl FormatEncoder {
 
     fn finish(&mut self) -> Result<()> {
         match self {
-            Self::Parquet(writer) => {
-                writer.finish()?;
+            Self::Interchange(writer) => {
+                if let Some(writer) = writer.take() {
+                    writer.finish()?;
+                }
             }
-            Self::Arrow(writer) => writer.finish()?,
             Self::Csv(_) => {}
             Self::Jsonl(writer) => writer.finish()?,
         }
@@ -227,4 +229,70 @@ fn offset_position(position: u64, offset: i64) -> io::Result<u64> {
 
 fn db_error_to_io(err: DbError) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, err)
+}
+
+#[cfg(test)]
+mod tests {
+    use arrow::array::StringArray;
+    use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+    use arrow::error::ArrowError;
+    use arrow::record_batch::RecordBatchReader;
+
+    use super::*;
+
+    struct CountingReader {
+        schema: SchemaRef,
+        batches: std::vec::IntoIter<RecordBatch>,
+        reads: Arc<Mutex<usize>>,
+    }
+
+    impl Iterator for CountingReader {
+        type Item = std::result::Result<RecordBatch, ArrowError>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let batch = self.batches.next()?;
+            *self.reads.lock().unwrap() += 1;
+            Some(Ok(batch))
+        }
+    }
+
+    impl RecordBatchReader for CountingReader {
+        fn schema(&self) -> SchemaRef {
+            Arc::clone(&self.schema)
+        }
+    }
+
+    #[test]
+    fn arrow_reads_encode_database_batches_incrementally() {
+        let schema = Arc::new(Schema::new(vec![Field::new(
+            "value",
+            DataType::Utf8,
+            false,
+        )]));
+        let batch = RecordBatch::try_new(
+            schema.clone(),
+            vec![Arc::new(StringArray::from(vec!["x".repeat(10_000)]))],
+        )
+        .unwrap();
+        let reads = Arc::new(Mutex::new(0));
+        let reader = CountingReader {
+            schema,
+            batches: vec![batch.clone(), batch].into_iter(),
+            reads: Arc::clone(&reads),
+        };
+        let mut file = EncodedDbFile::new(
+            Box::new(reader),
+            DataFormat::Arrow,
+            FileInfo::file("/main/data.arrow", 0),
+        )
+        .unwrap();
+
+        let mut first_chunk = [0; 1024];
+        file.read_exact(&mut first_chunk).unwrap();
+        assert_eq!(*reads.lock().unwrap(), 1);
+
+        let mut remainder = Vec::new();
+        file.read_to_end(&mut remainder).unwrap();
+        assert_eq!(*reads.lock().unwrap(), 2);
+    }
 }

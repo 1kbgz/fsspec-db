@@ -744,12 +744,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "fsspec_db"
-version = "0.2.0"
+name = "fsspec_data"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7b97952adcd3da00cdf9ec27ba3ec9db990cb4f17bf170c7b74231f11874073"
 dependencies = [
  "arrow",
  "bytes",
+ "parquet",
+ "thiserror",
+]
+
+[[package]]
+name = "fsspec_db"
+version = "0.3.0"
+dependencies = [
+ "arrow",
  "csv-core",
+ "fsspec_data",
  "fsspec_rs",
  "futures-util",
  "parquet",
