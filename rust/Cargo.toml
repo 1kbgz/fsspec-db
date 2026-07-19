@@ -15,9 +15,9 @@ crate-type = ["rlib"]
 
 [dependencies]
 arrow = "54.3.1"
-bytes = "1"
 csv-core = "0.1"
 futures-util = "0.3"
+fsspec_data = "0.2.1"
 fsspec_rs = "0.1.2"
 parquet = "54.3.1"
 sqlparser = { version = "0.62.0", features = ["visitor"] }

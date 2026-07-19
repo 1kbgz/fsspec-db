@@ -4,11 +4,12 @@ use std::sync::Arc;
 use arrow::csv::{reader::ReaderBuilder as CsvReaderBuilder, writer::WriterBuilder};
 use arrow::datatypes::SchemaRef;
 use arrow::error::ArrowError;
-use arrow::ipc::{reader::StreamReader, writer::StreamWriter};
 use arrow::json::{reader::ReaderBuilder as JsonReaderBuilder, LineDelimitedWriter};
 use arrow::record_batch::{RecordBatch, RecordBatchIterator};
-use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
-use parquet::arrow::ArrowWriter;
+use fsspec_data::{
+    CancellationToken, DataFormat as InterchangeFormat, InterchangeError, StreamOptions,
+    DEFAULT_REGISTRY,
+};
 
 use crate::database::RecordBatchStream;
 use crate::path::DataFormat;
@@ -37,42 +38,55 @@ pub fn format_reader(reader: RecordBatchStream, format: &DataFormat) -> Result<V
     }
 }
 
-pub fn arrow_to_parquet(mut reader: RecordBatchStream) -> Result<Vec<u8>> {
-    let schema = reader.schema();
-    let mut out = Vec::new();
-    {
-        let mut writer = ArrowWriter::try_new(&mut out, schema, None)?;
-        write_batches(&mut reader, |batch| {
-            writer.write(batch).map_err(DbError::from)
-        })?;
-        writer.close()?;
-    }
-    Ok(out)
+pub fn arrow_to_parquet(reader: RecordBatchStream) -> Result<Vec<u8>> {
+    encode_with_interchange(reader, InterchangeFormat::Parquet)
 }
 
 pub fn parquet_to_arrow(data: Vec<u8>) -> Result<RecordBatchStream> {
-    let reader = ParquetRecordBatchReaderBuilder::try_new(bytes::Bytes::from(data))?
-        .build()
-        .map_err(DbError::from)?;
-    Ok(Box::new(reader))
+    decode_with_interchange(data, InterchangeFormat::Parquet)
 }
 
-pub fn arrow_to_ipc(mut reader: RecordBatchStream) -> Result<Vec<u8>> {
-    let schema = reader.schema();
-    let mut out = Vec::new();
-    {
-        let mut writer = StreamWriter::try_new(&mut out, &schema)?;
-        write_batches(&mut reader, |batch| {
-            writer.write(batch).map_err(DbError::from)
-        })?;
-        writer.finish()?;
-    }
-    Ok(out)
+pub fn arrow_to_ipc(reader: RecordBatchStream) -> Result<Vec<u8>> {
+    encode_with_interchange(reader, InterchangeFormat::Arrow)
 }
 
 pub fn ipc_to_arrow(data: Vec<u8>) -> Result<RecordBatchStream> {
-    let reader = StreamReader::try_new(Cursor::new(data), None)?;
-    Ok(Box::new(reader))
+    decode_with_interchange(data, InterchangeFormat::Arrow)
+}
+
+fn encode_with_interchange(
+    reader: RecordBatchStream,
+    format: InterchangeFormat,
+) -> Result<Vec<u8>> {
+    let schema = reader.schema();
+    let codec = DEFAULT_REGISTRY.get(format)?;
+    let mut batches = reader.map(|batch| batch.map_err(InterchangeError::from));
+    let mut output = Vec::new();
+    codec.encode_stream(schema, &mut batches, &mut output)?;
+    Ok(output)
+}
+
+fn decode_with_interchange(data: Vec<u8>, format: InterchangeFormat) -> Result<RecordBatchStream> {
+    let codec = DEFAULT_REGISTRY.get(format)?;
+    let options = if format == InterchangeFormat::Arrow {
+        StreamOptions {
+            batch_size: usize::MAX,
+            ..StreamOptions::default()
+        }
+    } else {
+        StreamOptions::default()
+    };
+    let stream = codec.decode_stream(data, None, options, CancellationToken::new())?;
+    let schema = stream.schema.clone();
+    let batches = stream.map(|batch| batch.map_err(interchange_to_arrow));
+    Ok(Box::new(RecordBatchIterator::new(batches, schema)))
+}
+
+fn interchange_to_arrow(err: InterchangeError) -> ArrowError {
+    match err {
+        InterchangeError::Arrow(err) => err,
+        err => ArrowError::ExternalError(Box::new(err)),
+    }
 }
 
 pub fn arrow_to_csv(mut reader: RecordBatchStream) -> Result<Vec<u8>> {
@@ -156,6 +170,24 @@ mod tests {
         let data = arrow_to_ipc(rows_to_arrow(vec![input.clone()]).unwrap()).unwrap();
         let mut reader = ipc_to_arrow(data).unwrap();
         assert_eq!(reader.next().unwrap().unwrap(), input);
+    }
+
+    #[test]
+    fn ipc_preserves_large_batch_boundaries() {
+        let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Int64, false)]));
+        let input = RecordBatch::try_new(
+            schema,
+            vec![Arc::new(Int64Array::from_iter_values(0..1025)) as ArrayRef],
+        )
+        .unwrap();
+        let data = arrow_to_ipc(rows_to_arrow(vec![input]).unwrap()).unwrap();
+        let batches = ipc_to_arrow(data)
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].num_rows(), 1025);
     }
 
     #[test]

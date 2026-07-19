@@ -1,6 +1,7 @@
 use std::{fmt, io};
 
 use arrow::error::ArrowError;
+use fsspec_data::InterchangeError;
 use fsspec_rs::FsError;
 use parquet::errors::ParquetError;
 
@@ -88,6 +89,16 @@ impl From<ArrowError> for DbError {
 impl From<ParquetError> for DbError {
     fn from(err: ParquetError) -> Self {
         DbError::Parquet(err)
+    }
+}
+
+impl From<InterchangeError> for DbError {
+    fn from(err: InterchangeError) -> Self {
+        match err {
+            InterchangeError::Arrow(err) => DbError::Arrow(err),
+            InterchangeError::Parquet(err) => DbError::Parquet(err),
+            err => DbError::Other(err.to_string()),
+        }
     }
 }
 
