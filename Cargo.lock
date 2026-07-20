@@ -745,9 +745,9 @@ dependencies = [
 
 [[package]]
 name = "fsspec_data"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7b97952adcd3da00cdf9ec27ba3ec9db990cb4f17bf170c7b74231f11874073"
+checksum = "92f845eb8c59765a5e0679e5fa6423fb0547c0ab2e22965f0f80edb46e47c6bf"
 dependencies = [
  "arrow",
  "bytes",

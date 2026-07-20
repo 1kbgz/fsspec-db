@@ -2,8 +2,6 @@ use std::cmp::min;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::sync::{Arc, Mutex};
 
-use arrow::csv::writer::{Writer as CsvWriter, WriterBuilder as CsvWriterBuilder};
-use arrow::json::writer::LineDelimitedWriter;
 use arrow::record_batch::RecordBatch;
 use fsspec_data::{CodecWriter, DataFormat as InterchangeFormat, DEFAULT_REGISTRY};
 use fsspec_rs::{FileInfo, FsFile, FsResult};
@@ -42,56 +40,38 @@ impl Write for SharedBuffer {
     }
 }
 
-enum FormatEncoder {
-    Interchange(Option<Box<dyn CodecWriter>>),
-    Csv(Box<CsvWriter<SharedBuffer>>),
-    Jsonl(LineDelimitedWriter<SharedBuffer>),
+struct FormatEncoder {
+    writer: Option<Box<dyn CodecWriter>>,
 }
 
 impl FormatEncoder {
     fn new(format: DataFormat, reader: &RecordBatchStream, sink: SharedBuffer) -> Result<Self> {
         let schema = reader.schema();
-        match format {
-            DataFormat::Parquet | DataFormat::Arrow => {
-                let format = match format {
-                    DataFormat::Parquet => InterchangeFormat::Parquet,
-                    DataFormat::Arrow => InterchangeFormat::Arrow,
-                    _ => unreachable!(),
-                };
-                let writer = DEFAULT_REGISTRY
-                    .get(format)?
-                    .start_owned_writer(schema, Box::new(sink))?;
-                Ok(Self::Interchange(Some(writer)))
-            }
-            DataFormat::Csv => Ok(Self::Csv(Box::new(
-                CsvWriterBuilder::new().with_header(true).build(sink),
-            ))),
-            DataFormat::Jsonl => Ok(Self::Jsonl(LineDelimitedWriter::new(sink))),
+        let format = match format {
+            DataFormat::Parquet => InterchangeFormat::Parquet,
+            DataFormat::Arrow => InterchangeFormat::Arrow,
+            DataFormat::Csv => InterchangeFormat::Csv,
+            DataFormat::Jsonl => InterchangeFormat::JsonLines,
             DataFormat::Sql => Err(DbError::NotSupported(
                 "SQL DDL encoding is handled by DatabaseFs".to_string(),
-            )),
-        }
+            ))?,
+        };
+        let writer = DEFAULT_REGISTRY
+            .get(format)?
+            .start_owned_writer(schema, Box::new(sink))?;
+        Ok(Self {
+            writer: Some(writer),
+        })
     }
 
     fn write_batch(&mut self, batch: &RecordBatch) -> Result<()> {
-        match self {
-            Self::Interchange(Some(writer)) => writer.write_batch(batch)?,
-            Self::Interchange(None) => unreachable!(),
-            Self::Csv(writer) => writer.write(batch)?,
-            Self::Jsonl(writer) => writer.write(batch)?,
-        }
+        self.writer.as_mut().unwrap().write_batch(batch)?;
         Ok(())
     }
 
     fn finish(&mut self) -> Result<()> {
-        match self {
-            Self::Interchange(writer) => {
-                if let Some(writer) = writer.take() {
-                    writer.finish()?;
-                }
-            }
-            Self::Csv(_) => {}
-            Self::Jsonl(writer) => writer.finish()?,
+        if let Some(writer) = self.writer.take() {
+            writer.finish()?;
         }
         Ok(())
     }
@@ -263,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn arrow_reads_encode_database_batches_incrementally() {
+    fn text_and_arrow_reads_encode_database_batches_incrementally() {
         let schema = Arc::new(Schema::new(vec![Field::new(
             "value",
             DataType::Utf8,
@@ -274,25 +254,24 @@ mod tests {
             vec![Arc::new(StringArray::from(vec!["x".repeat(10_000)]))],
         )
         .unwrap();
-        let reads = Arc::new(Mutex::new(0));
-        let reader = CountingReader {
-            schema,
-            batches: vec![batch.clone(), batch].into_iter(),
-            reads: Arc::clone(&reads),
-        };
-        let mut file = EncodedDbFile::new(
-            Box::new(reader),
-            DataFormat::Arrow,
-            FileInfo::file("/main/data.arrow", 0),
-        )
-        .unwrap();
+        for format in [DataFormat::Arrow, DataFormat::Csv, DataFormat::Jsonl] {
+            let reads = Arc::new(Mutex::new(0));
+            let reader = CountingReader {
+                schema: schema.clone(),
+                batches: vec![batch.clone(), batch.clone()].into_iter(),
+                reads: Arc::clone(&reads),
+            };
+            let mut file =
+                EncodedDbFile::new(Box::new(reader), format, FileInfo::file("/main/data", 0))
+                    .unwrap();
 
-        let mut first_chunk = [0; 1024];
-        file.read_exact(&mut first_chunk).unwrap();
-        assert_eq!(*reads.lock().unwrap(), 1);
+            let mut first_chunk = [0; 1024];
+            file.read_exact(&mut first_chunk).unwrap();
+            assert_eq!(*reads.lock().unwrap(), 1);
 
-        let mut remainder = Vec::new();
-        file.read_to_end(&mut remainder).unwrap();
-        assert_eq!(*reads.lock().unwrap(), 2);
+            let mut remainder = Vec::new();
+            file.read_to_end(&mut remainder).unwrap();
+            assert_eq!(*reads.lock().unwrap(), 2);
+        }
     }
 }
