@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="PostgreSQL and MySQL" href="sql-backends.html"><link rel="prev" title="Paths" href="paths.html">
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="Python Backends" href="python-backends.html"><link rel="prev" title="PostgreSQL and MySQL" href="sql-backends.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>SQLite - fsspec-db v0.3.0</title>
+        <title>How to connect Python database adapters - fsspec-db v0.3.0</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
@@ -200,9 +200,9 @@
 <li class="toctree-l1"><a class="reference internal" href="tutorial.html">Browse a SQLite database as a filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="paths.html">Paths</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sqlite.html">SQLite</a></li>
 <li class="toctree-l1"><a class="reference internal" href="sql-backends.html">PostgreSQL and MySQL</a></li>
-<li class="toctree-l1"><a class="reference internal" href="adapter-backends.html">How to connect Python database adapters</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">How to connect Python database adapters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="python-backends.html">Python Backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
@@ -225,7 +225,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../../_sources/docs/src/sqlite.md.txt" title="View this page">
+  <a class="muted-link" href="../../_sources/docs/src/adapter-backends.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -243,132 +243,91 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="sqlite">
-<h1>SQLite<a class="headerlink" href="#sqlite" title="Link to this heading">¶</a></h1>
-<p>SQLite is the first native backend. It is implemented in Rust with sqlx and exposed to
-Python as the <code class="docutils literal notranslate"><span class="pre">db+sqlite</span></code> fsspec protocol.</p>
-<section id="construction">
-<h2>Construction<a class="headerlink" href="#construction" title="Link to this heading">¶</a></h2>
+          <section class="tex2jax_ignore mathjax_ignore" id="how-to-connect-python-database-adapters">
+<h1>How to connect Python database adapters<a class="headerlink" href="#how-to-connect-python-database-adapters" title="Link to this heading">¶</a></h1>
+<p>Use these adapters when a database already exposes Arrow results in Python, is available
+through SQLAlchemy, or has an ODBC driver. They share the same paths and fsspec operations
+as the native Rust SQL backends.</p>
+<section id="connect-duckdb">
+<h2>Connect DuckDB<a class="headerlink" href="#connect-duckdb" title="Link to this heading">¶</a></h2>
+<p>Install the DuckDB extra:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python -m pip install &#39;fsspec-db[duckdb]&#39;</span>
+</pre></div>
+</div>
+<p>Open a database file:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
 
-<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;db+sqlite&quot;</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">&quot;app.db&quot;</span><span class="p">)</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;db+duckdb&quot;</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">&quot;warehouse.duckdb&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">orders</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM orders LIMIT ?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">100</span><span class="p">])</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">database</span></code> can be a filesystem path, <code class="docutils literal notranslate"><span class="pre">:memory:</span></code>, or a SQLite URL such as
-<code class="docutils literal notranslate"><span class="pre">sqlite:///tmp/app.db</span></code>.</p>
-<p>You can also construct the class directly:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">fsspec_db</span><span class="w"> </span><span class="kn">import</span> <span class="n">SQLiteDatabaseFileSystem</span>
+<p>To reuse an existing connection, construct the class directly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">duckdb</span>
 
-<span class="n">fs</span> <span class="o">=</span> <span class="n">SQLiteDatabaseFileSystem</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="s2">&quot;app.db&quot;</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fsspec_db</span><span class="w"> </span><span class="kn">import</span> <span class="n">DuckDBDatabaseFileSystem</span>
+
+<span class="n">connection</span> <span class="o">=</span> <span class="n">duckdb</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;warehouse.duckdb&quot;</span><span class="p">)</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">DuckDBDatabaseFileSystem</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="reading-metadata">
-<h2>Reading Metadata<a class="headerlink" href="#reading-metadata" title="Link to this heading">¶</a></h2>
+<section id="connect-through-sqlalchemy">
+<h2>Connect through SQLAlchemy<a class="headerlink" href="#connect-through-sqlalchemy" title="Link to this heading">¶</a></h2>
+<p>Install SQLAlchemy and the driver for the target database:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python -m pip install fsspec-db sqlalchemy</span>
+</pre></div>
+</div>
+<p>Pass a SQLAlchemy URL through the registered protocol:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;db+sqlalchemy&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s2">&quot;sqlite:///warehouse.db&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Reuse an engine when the application already owns connection pooling:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_engine</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">fsspec_db</span><span class="w"> </span><span class="kn">import</span> <span class="n">SQLAlchemyDatabaseFileSystem</span>
+
+<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="s2">&quot;sqlite:///warehouse.db&quot;</span><span class="p">)</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">SQLAlchemyDatabaseFileSystem</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="connect-through-odbc">
+<h2>Connect through ODBC<a class="headerlink" href="#connect-through-odbc" title="Link to this heading">¶</a></h2>
+<p>Install the ODBC extra and an operating-system ODBC driver for the target database:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python -m pip install &#39;fsspec-db[odbc]&#39;</span>
+</pre></div>
+</div>
+<p>Pass the driver’s connection string:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span>
+    <span class="s2">&quot;db+odbc&quot;</span><span class="p">,</span>
+    <span class="n">connection_string</span><span class="o">=</span><span class="s2">&quot;Driver={PostgreSQL Unicode};Server=localhost;Database=warehouse&quot;</span><span class="p">,</span>
+    <span class="n">user</span><span class="o">=</span><span class="s2">&quot;analyst&quot;</span><span class="p">,</span>
+    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;secret&quot;</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">65535</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">batch_size</span></code> controls rows requested from <code class="docutils literal notranslate"><span class="pre">arrow-odbc</span></code> per batch. Keep credentials out of
+source files; supply them through the application’s normal secret or configuration system.</p>
+</section>
+<section id="use-the-common-filesystem-surface">
+<h2>Use the common filesystem surface<a class="headerlink" href="#use-the-common-filesystem-surface" title="Link to this heading">¶</a></h2>
+<p>After construction, all three adapters support the database path model:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/users&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/users/columns/id&quot;</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/orders/columns/order_id&quot;</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/orders.arrow?limit=100&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The backend introspects:</p>
-<ul class="simple">
-<li><p>schemas from <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">database_list</span></code>;</p></li>
-<li><p>tables and views from <code class="docutils literal notranslate"><span class="pre">sqlite_master</span></code>;</p></li>
-<li><p>columns from <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">table_info</span></code>;</p></li>
-<li><p>indexes from <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">index_list</span></code> and <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">index_info</span></code>;</p></li>
-<li><p>primary keys and foreign keys from <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">table_info</span></code> and <code class="docutils literal notranslate"><span class="pre">PRAGMA</span> <span class="pre">foreign_key_list</span></code>.</p></li>
-</ul>
-<p>Relation lookups check only the requested relation and count rows only for that relation.
-Schema listings do not count every table.</p>
-</section>
-<section id="reading-data">
-<h2>Reading Data<a class="headerlink" href="#reading-data" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.ipc</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ipc</span>
-
-<span class="k">with</span> <span class="n">ipc</span><span class="o">.</span><span class="n">open_stream</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
-    <span class="n">table</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
-
-<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
-    <span class="n">head</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
-
-<span class="n">table</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;SELECT id, name FROM users WHERE id &gt; ?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-</pre></div>
-</div>
-<p>The native path releases the Python GIL while SQLite I/O is running.</p>
-</section>
-<section id="writing-arrow-ipc">
-<h2>Writing Arrow IPC<a class="headerlink" href="#writing-arrow-ipc" title="Link to this heading">¶</a></h2>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Overwrite writes replace the table contents. <code class="docutils literal notranslate"><span class="pre">open(path,</span> <span class="pre">&quot;wb&quot;)</span></code>, default <code class="docutils literal notranslate"><span class="pre">pipe_file</span></code>, and
-default <code class="docutils literal notranslate"><span class="pre">put_file</span></code> delete existing rows inside the write transaction before inserting the
-incoming rows. Use <code class="docutils literal notranslate"><span class="pre">&quot;ab&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">mode=&quot;append&quot;</span></code> to preserve existing rows.</p>
-</div>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.ipc</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ipc</span>
-
-<span class="n">table</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;ada&quot;</span><span class="p">],</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]})</span>
-<span class="n">sink</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">BufferOutputStream</span><span class="p">()</span>
-<span class="k">with</span> <span class="n">ipc</span><span class="o">.</span><span class="n">new_stream</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="p">)</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
-    <span class="n">writer</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
-
-<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
-    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">sink</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">to_pybytes</span><span class="p">())</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">&quot;ab&quot;</span></code> appends rows. <code class="docutils literal notranslate"><span class="pre">&quot;wb&quot;</span></code> truncates the table with <code class="docutils literal notranslate"><span class="pre">DELETE</span> <span class="pre">FROM</span></code> inside the same
-transaction, then inserts rows. The Rust-backed write handle commits when it closes;
-unclosed handles are discarded.</p>
-</section>
-<section id="writing-parquet">
-<h2>Writing Parquet<a class="headerlink" href="#writing-parquet" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.parquet</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pq</span>
-
-<span class="n">pq</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;grace&quot;</span><span class="p">],</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">2.0</span><span class="p">]}),</span> <span class="s2">&quot;rows.parquet&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">put_file</span><span class="p">(</span><span class="s2">&quot;rows.parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;/main/users.parquet&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">put_file</span></code> truncates by default. Pass <code class="docutils literal notranslate"><span class="pre">mode=&quot;append&quot;</span></code> to append:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">put_file</span><span class="p">(</span><span class="s2">&quot;rows.parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;/main/users.parquet&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;append&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</section>
-<section id="type-handling">
-<h2>Type Handling<a class="headerlink" href="#type-handling" title="Link to this heading">¶</a></h2>
-<p>SQLite values are converted into Arrow arrays with a small affinity mapper. Query results use
-declared column metadata plus observed non-null runtime value types, so NULL-first and mixed
-numeric expression columns can still produce numeric Arrow arrays.</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>SQLite value/type</p></th>
-<th class="head"><p>Arrow type</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>boolean-like</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">bool</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>integer-like</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">int64</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>real/float/double</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">float64</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>blob/binary</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">binary</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>everything else</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">utf8</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>For writes, Arrow <code class="docutils literal notranslate"><span class="pre">Null</span></code> columns bind SQLite <code class="docutils literal notranslate"><span class="pre">NULL</span></code>. Temporal arrays are bound as integer
-epoch values. When a query produces mixed SQLite runtime types in one expression column,
-cast explicitly in SQL for predictable Arrow output.</p>
+<p>Backend metadata capabilities vary with the database and driver. See the <a class="reference internal" href="paths.html"><span class="std std-doc">path
+reference</span></a> for common paths and <a class="reference internal" href="python-backends.html"><span class="std std-doc">Python backends</span></a> to
+implement a custom adapter.</p>
 </section>
 </section>
 
@@ -377,23 +336,23 @@ cast explicitly in SQL for predictable Arrow output.</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="sql-backends.html">
+          <a class="next-page" href="python-backends.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">PostgreSQL and MySQL</div>
+                <div class="title">Python Backends</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="paths.html">
+          <a class="prev-page" href="sql-backends.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Paths</div>
+                <div class="title">PostgreSQL and MySQL</div>
                 
               </div>
             </a>
@@ -427,13 +386,11 @@ cast explicitly in SQL for predictable Arrow output.</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">SQLite</a><ul>
-<li><a class="reference internal" href="#construction">Construction</a></li>
-<li><a class="reference internal" href="#reading-metadata">Reading Metadata</a></li>
-<li><a class="reference internal" href="#reading-data">Reading Data</a></li>
-<li><a class="reference internal" href="#writing-arrow-ipc">Writing Arrow IPC</a></li>
-<li><a class="reference internal" href="#writing-parquet">Writing Parquet</a></li>
-<li><a class="reference internal" href="#type-handling">Type Handling</a></li>
+<li><a class="reference internal" href="#">How to connect Python database adapters</a><ul>
+<li><a class="reference internal" href="#connect-duckdb">Connect DuckDB</a></li>
+<li><a class="reference internal" href="#connect-through-sqlalchemy">Connect through SQLAlchemy</a></li>
+<li><a class="reference internal" href="#connect-through-odbc">Connect through ODBC</a></li>
+<li><a class="reference internal" href="#use-the-common-filesystem-surface">Use the common filesystem surface</a></li>
 </ul>
 </li>
 </ul>

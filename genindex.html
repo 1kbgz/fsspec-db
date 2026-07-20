@@ -195,10 +195,12 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/tutorial.html">Browse a SQLite database as a filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/concepts.html">Concepts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/paths.html">Paths</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/sqlite.html">SQLite</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/sql-backends.html">PostgreSQL and MySQL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/adapter-backends.html">How to connect Python database adapters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/python-backends.html">Python Backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/api.html">API</a></li>
 </ul>
@@ -277,6 +279,8 @@
 </li>
           <li><a href="docs/src/api.html#fsspec_db.PyDatabaseFileSystem.cat_file">(fsspec_db.PyDatabaseFileSystem method)</a>
 </li>
+          <li><a href="docs/src/api.html#fsspec_db.python.PyDatabaseFileSystem.cat_file">(fsspec_db.python.PyDatabaseFileSystem method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.cat_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.cat_file">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
@@ -295,11 +299,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.dialect">dialect() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.dialect">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.dialect">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.dialect">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.dialect">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.dialect">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.dialect">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.dialect">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -307,9 +317,17 @@
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase">DuckDBDatabase (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase">(class in fsspec_db.duckdb)</a>
 </li>
+        </ul></li>
         <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabaseFileSystem">DuckDBDatabaseFileSystem (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabaseFileSystem">(class in fsspec_db.duckdb)</a>
 </li>
+        </ul></li>
     </ul></td>
   </tr></table>
 </section>
@@ -326,10 +344,24 @@
 </li>
         </ul></li>
         <li>
+    fsspec_db.duckdb
+
+        <ul>
+          <li><a href="docs/src/api.html#module-fsspec_db.duckdb">module</a>
+</li>
+        </ul></li>
+        <li>
     fsspec_db.mysql
 
         <ul>
           <li><a href="docs/src/api.html#module-fsspec_db.mysql">module</a>
+</li>
+        </ul></li>
+        <li>
+    fsspec_db.odbc
+
+        <ul>
+          <li><a href="docs/src/api.html#module-fsspec_db.odbc">module</a>
 </li>
         </ul></li>
         <li>
@@ -342,10 +374,24 @@
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li>
+    fsspec_db.python
+
+        <ul>
+          <li><a href="docs/src/api.html#module-fsspec_db.python">module</a>
+</li>
+        </ul></li>
+        <li>
     fsspec_db.spec
 
         <ul>
           <li><a href="docs/src/api.html#module-fsspec_db.spec">module</a>
+</li>
+        </ul></li>
+        <li>
+    fsspec_db.sqlalchemy
+
+        <ul>
+          <li><a href="docs/src/api.html#module-fsspec_db.sqlalchemy">module</a>
 </li>
         </ul></li>
         <li>
@@ -376,6 +422,8 @@
 </li>
           <li><a href="docs/src/api.html#fsspec_db.PyDatabaseFileSystem.info">(fsspec_db.PyDatabaseFileSystem method)</a>
 </li>
+          <li><a href="docs/src/api.html#fsspec_db.python.PyDatabaseFileSystem.info">(fsspec_db.python.PyDatabaseFileSystem method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.info">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.info">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
@@ -388,11 +436,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.insert">insert() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.insert">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.insert">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.insert">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.insert">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.insert">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.insert">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.insert">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -408,11 +462,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.list_columns">list_columns() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.list_columns">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.list_columns">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.list_columns">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.list_columns">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.list_columns">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.list_columns">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.list_columns">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -420,11 +480,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.list_constraints">list_constraints() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.list_constraints">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.list_constraints">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.list_constraints">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.list_constraints">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.list_constraints">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.list_constraints">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.list_constraints">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -432,11 +498,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.list_indexes">list_indexes() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.list_indexes">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.list_indexes">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.list_indexes">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.list_indexes">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.list_indexes">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.list_indexes">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.list_indexes">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -444,11 +516,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.list_relations">list_relations() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.list_relations">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.list_relations">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.list_relations">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.list_relations">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.list_relations">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.list_relations">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.list_relations">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -458,11 +536,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.list_schemas">list_schemas() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.list_schemas">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.list_schemas">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.list_schemas">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.list_schemas">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.list_schemas">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.list_schemas">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.list_schemas">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -479,6 +563,8 @@
           <li><a href="docs/src/api.html#fsspec_db.PostgresDatabaseFileSystem.ls">(fsspec_db.PostgresDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.PyDatabaseFileSystem.ls">(fsspec_db.PyDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.python.PyDatabaseFileSystem.ls">(fsspec_db.python.PyDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.ls">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
@@ -501,11 +587,19 @@
         <ul>
           <li><a href="docs/src/api.html#module-fsspec_db">fsspec_db</a>
 </li>
+          <li><a href="docs/src/api.html#module-fsspec_db.duckdb">fsspec_db.duckdb</a>
+</li>
           <li><a href="docs/src/api.html#module-fsspec_db.mysql">fsspec_db.mysql</a>
+</li>
+          <li><a href="docs/src/api.html#module-fsspec_db.odbc">fsspec_db.odbc</a>
 </li>
           <li><a href="docs/src/api.html#module-fsspec_db.postgres">fsspec_db.postgres</a>
 </li>
+          <li><a href="docs/src/api.html#module-fsspec_db.python">fsspec_db.python</a>
+</li>
           <li><a href="docs/src/api.html#module-fsspec_db.spec">fsspec_db.spec</a>
+</li>
+          <li><a href="docs/src/api.html#module-fsspec_db.sqlalchemy">fsspec_db.sqlalchemy</a>
 </li>
           <li><a href="docs/src/api.html#module-fsspec_db.sqlite">fsspec_db.sqlite</a>
 </li>
@@ -527,11 +621,19 @@
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase">OdbcDatabase (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase">(class in fsspec_db.odbc)</a>
 </li>
+        </ul></li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="docs/src/api.html#fsspec_db.OdbcDatabaseFileSystem">OdbcDatabaseFileSystem (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabaseFileSystem">(class in fsspec_db.odbc)</a>
 </li>
+        </ul></li>
     </ul></td>
   </tr></table>
 </section>
@@ -552,6 +654,8 @@
           <li><a href="docs/src/api.html#fsspec_db.PostgresDatabaseFileSystem.pipe_file">(fsspec_db.PostgresDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.PyDatabaseFileSystem.pipe_file">(fsspec_db.PyDatabaseFileSystem method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.python.PyDatabaseFileSystem.pipe_file">(fsspec_db.python.PyDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.pipe_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
@@ -581,6 +685,8 @@
 </li>
           <li><a href="docs/src/api.html#fsspec_db.PyDatabaseFileSystem.put_file">(fsspec_db.PyDatabaseFileSystem method)</a>
 </li>
+          <li><a href="docs/src/api.html#fsspec_db.python.PyDatabaseFileSystem.put_file">(fsspec_db.python.PyDatabaseFileSystem method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabaseFileSystem.put_file">(fsspec_db.spec.AbstractDatabaseFileSystem method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.sqlite.SQLiteDatabaseFileSystem.put_file">(fsspec_db.sqlite.SQLiteDatabaseFileSystem method)</a>
@@ -589,7 +695,11 @@
 </li>
         </ul></li>
         <li><a href="docs/src/api.html#fsspec_db.PyDatabaseFileSystem">PyDatabaseFileSystem (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.python.PyDatabaseFileSystem">(class in fsspec_db.python)</a>
 </li>
+        </ul></li>
     </ul></td>
   </tr></table>
 </section>
@@ -601,11 +711,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.query">query() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.query">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.query">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.query">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.query">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.query">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.query">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.query">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -621,11 +737,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.relation_info">relation_info() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.relation_info">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.relation_info">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.relation_info">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.relation_info">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.relation_info">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.relation_info">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.relation_info">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
@@ -639,9 +761,17 @@
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase">SQLAlchemyDatabase (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase">(class in fsspec_db.sqlalchemy)</a>
 </li>
+        </ul></li>
         <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabaseFileSystem">SQLAlchemyDatabaseFileSystem (class in fsspec_db)</a>
+
+        <ul>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabaseFileSystem">(class in fsspec_db.sqlalchemy)</a>
 </li>
+        </ul></li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="docs/src/api.html#fsspec_db.SQLiteDatabaseFileSystem">SQLiteDatabaseFileSystem (class in fsspec_db)</a>
@@ -661,11 +791,17 @@
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.view_definition">view_definition() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
+          <li><a href="docs/src/api.html#fsspec_db.duckdb.DuckDBDatabase.view_definition">(fsspec_db.duckdb.DuckDBDatabase method)</a>
+</li>
           <li><a href="docs/src/api.html#fsspec_db.DuckDBDatabase.view_definition">(fsspec_db.DuckDBDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.odbc.OdbcDatabase.view_definition">(fsspec_db.odbc.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.OdbcDatabase.view_definition">(fsspec_db.OdbcDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.spec.AbstractDatabase.view_definition">(fsspec_db.spec.AbstractDatabase method)</a>
+</li>
+          <li><a href="docs/src/api.html#fsspec_db.sqlalchemy.SQLAlchemyDatabase.view_definition">(fsspec_db.sqlalchemy.SQLAlchemyDatabase method)</a>
 </li>
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.view_definition">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>

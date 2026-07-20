@@ -6,6 +6,8 @@ hidden: true
 
 
 
+docs/src/tutorial.md
+
 docs/src/concepts.md
 
 docs/src/paths.md
@@ -13,6 +15,8 @@ docs/src/paths.md
 docs/src/sqlite.md
 
 docs/src/sql-backends.md
+
+docs/src/adapter-backends.md
 
 docs/src/python-backends.md
 
@@ -42,7 +46,7 @@ Database tables and views as fsspec filesystems.
 - `open("/main/users.arrow", "wb")` or `put_file(..., "/main/users.parquet")` inserts rows.
 
 Native backends are registered as `db+sqlite`, `db+postgresql` / `db+postgres`, and
-`db+mysql`.
+`db+mysql`. Python adapters provide `db+duckdb`, `db+sqlalchemy`, and `db+odbc`.
 
 > [!WARNING]
 > Database overwrite writes replace table contents. `open(path, "wb")`, `pipe_file`, and
@@ -91,5 +95,9 @@ with fs.open("/main/users.arrow", "ab") as file:
 
 ## Documentation
 
-The full yardang/Sphinx docs cover concepts, path semantics, native SQL backends,
-Python-defined backends, and the API reference.
+- [Browse a SQLite database](docs/src/tutorial.md): guided first use.
+- [Use SQLite](docs/src/sqlite.md), [PostgreSQL or MySQL](docs/src/sql-backends.md), or
+  [Python database adapters](docs/src/adapter-backends.md): task-oriented guides.
+- [Understand the filesystem mapping](docs/src/concepts.md): architecture and boundaries.
+- [Look up paths](docs/src/paths.md), [custom Python backend contracts](docs/src/python-backends.md),
+  and the [Python API](docs/src/api.md): factual reference.

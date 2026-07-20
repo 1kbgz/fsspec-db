@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Concepts" href="docs/src/concepts.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Browse a SQLite database as a filesystem" href="docs/src/tutorial.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>fsspec-db v0.3.0</title>
@@ -197,10 +197,12 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/tutorial.html">Browse a SQLite database as a filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/concepts.html">Concepts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/paths.html">Paths</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/sqlite.html">SQLite</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/sql-backends.html">PostgreSQL and MySQL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/adapter-backends.html">How to connect Python database adapters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/python-backends.html">Python Backends</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/api.html">API</a></li>
 </ul>
@@ -262,7 +264,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">open(&quot;/main/users.arrow&quot;,</span> <span class="pre">&quot;wb&quot;)</span></code> or <code class="docutils literal notranslate"><span class="pre">put_file(...,</span> <span class="pre">&quot;/main/users.parquet&quot;)</span></code> inserts rows.</p></li>
 </ul>
 <p>Native backends are registered as <code class="docutils literal notranslate"><span class="pre">db+sqlite</span></code>, <code class="docutils literal notranslate"><span class="pre">db+postgresql</span></code> / <code class="docutils literal notranslate"><span class="pre">db+postgres</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">db+mysql</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">db+mysql</span></code>. Python adapters provide <code class="docutils literal notranslate"><span class="pre">db+duckdb</span></code>, <code class="docutils literal notranslate"><span class="pre">db+sqlalchemy</span></code>, and <code class="docutils literal notranslate"><span class="pre">db+odbc</span></code>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Database overwrite writes replace table contents. <code class="docutils literal notranslate"><span class="pre">open(path,</span> <span class="pre">&quot;wb&quot;)</span></code>, <code class="docutils literal notranslate"><span class="pre">pipe_file</span></code>, and
@@ -312,8 +314,14 @@ default <code class="docutils literal notranslate"><span class="pre">put_file</s
 </section>
 <section id="documentation">
 <h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">¶</a></h2>
-<p>The full yardang/Sphinx docs cover concepts, path semantics, native SQL backends,
-Python-defined backends, and the API reference.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="docs/src/tutorial.html"><span class="std std-doc">Browse a SQLite database</span></a>: guided first use.</p></li>
+<li><p><a class="reference internal" href="docs/src/sqlite.html"><span class="std std-doc">Use SQLite</span></a>, <a class="reference internal" href="docs/src/sql-backends.html"><span class="std std-doc">PostgreSQL or MySQL</span></a>, or
+<a class="reference internal" href="docs/src/adapter-backends.html"><span class="std std-doc">Python database adapters</span></a>: task-oriented guides.</p></li>
+<li><p><a class="reference internal" href="docs/src/concepts.html"><span class="std std-doc">Understand the filesystem mapping</span></a>: architecture and boundaries.</p></li>
+<li><p><a class="reference internal" href="docs/src/paths.html"><span class="std std-doc">Look up paths</span></a>, <a class="reference internal" href="docs/src/python-backends.html"><span class="std std-doc">custom Python backend contracts</span></a>,
+and the <a class="reference internal" href="docs/src/api.html"><span class="std std-doc">Python API</span></a>: factual reference.</p></li>
+</ul>
 </section>
 </section>
 
@@ -322,12 +330,12 @@ Python-defined backends, and the API reference.</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="docs/src/concepts.html">
+          <a class="next-page" href="docs/src/tutorial.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Concepts</div>
+                <div class="title">Browse a SQLite database as a filesystem</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
