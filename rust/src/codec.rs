@@ -1,10 +1,7 @@
-use std::io::Cursor;
 use std::sync::Arc;
 
-use arrow::csv::{reader::ReaderBuilder as CsvReaderBuilder, writer::WriterBuilder};
 use arrow::datatypes::SchemaRef;
 use arrow::error::ArrowError;
-use arrow::json::{reader::ReaderBuilder as JsonReaderBuilder, LineDelimitedWriter};
 use arrow::record_batch::{RecordBatch, RecordBatchIterator};
 use fsspec_data::{
     CancellationToken, DataFormat as InterchangeFormat, InterchangeError, StreamOptions,
@@ -43,7 +40,7 @@ pub fn arrow_to_parquet(reader: RecordBatchStream) -> Result<Vec<u8>> {
 }
 
 pub fn parquet_to_arrow(data: Vec<u8>) -> Result<RecordBatchStream> {
-    decode_with_interchange(data, InterchangeFormat::Parquet)
+    decode_with_interchange(data, InterchangeFormat::Parquet, None)
 }
 
 pub fn arrow_to_ipc(reader: RecordBatchStream) -> Result<Vec<u8>> {
@@ -51,7 +48,7 @@ pub fn arrow_to_ipc(reader: RecordBatchStream) -> Result<Vec<u8>> {
 }
 
 pub fn ipc_to_arrow(data: Vec<u8>) -> Result<RecordBatchStream> {
-    decode_with_interchange(data, InterchangeFormat::Arrow)
+    decode_with_interchange(data, InterchangeFormat::Arrow, None)
 }
 
 fn encode_with_interchange(
@@ -66,7 +63,11 @@ fn encode_with_interchange(
     Ok(output)
 }
 
-fn decode_with_interchange(data: Vec<u8>, format: InterchangeFormat) -> Result<RecordBatchStream> {
+fn decode_with_interchange(
+    data: Vec<u8>,
+    format: InterchangeFormat,
+    schema: Option<SchemaRef>,
+) -> Result<RecordBatchStream> {
     let codec = DEFAULT_REGISTRY.get(format)?;
     let options = if format == InterchangeFormat::Arrow {
         StreamOptions {
@@ -76,7 +77,7 @@ fn decode_with_interchange(data: Vec<u8>, format: InterchangeFormat) -> Result<R
     } else {
         StreamOptions::default()
     };
-    let stream = codec.decode_stream(data, None, options, CancellationToken::new())?;
+    let stream = codec.decode_stream(data, schema, options, CancellationToken::new())?;
     let schema = stream.schema.clone();
     let batches = stream.map(|batch| batch.map_err(interchange_to_arrow));
     Ok(Box::new(RecordBatchIterator::new(batches, schema)))
@@ -89,54 +90,20 @@ fn interchange_to_arrow(err: InterchangeError) -> ArrowError {
     }
 }
 
-pub fn arrow_to_csv(mut reader: RecordBatchStream) -> Result<Vec<u8>> {
-    let mut out = Vec::new();
-    {
-        let mut writer = WriterBuilder::new().with_header(true).build(&mut out);
-        write_batches(&mut reader, |batch| {
-            writer.write(batch).map_err(DbError::from)
-        })?;
-    }
-    Ok(out)
+pub fn arrow_to_csv(reader: RecordBatchStream) -> Result<Vec<u8>> {
+    encode_with_interchange(reader, InterchangeFormat::Csv)
 }
 
 pub fn csv_to_arrow(data: Vec<u8>, schema: SchemaRef) -> Result<RecordBatchStream> {
-    let reader = CsvReaderBuilder::new(schema)
-        .with_header(true)
-        .build(Cursor::new(data))?;
-    Ok(Box::new(reader))
+    decode_with_interchange(data, InterchangeFormat::Csv, Some(schema))
 }
 
-pub fn arrow_to_jsonl(mut reader: RecordBatchStream) -> Result<Vec<u8>> {
-    let mut out = Vec::new();
-    {
-        let mut writer = LineDelimitedWriter::new(&mut out);
-        write_batches(&mut reader, |batch| {
-            writer.write(batch).map_err(DbError::from)
-        })?;
-        writer.finish()?;
-    }
-    Ok(out)
+pub fn arrow_to_jsonl(reader: RecordBatchStream) -> Result<Vec<u8>> {
+    encode_with_interchange(reader, InterchangeFormat::JsonLines)
 }
 
 pub fn jsonl_to_arrow(data: Vec<u8>, schema: SchemaRef) -> Result<RecordBatchStream> {
-    let reader = JsonReaderBuilder::new(schema).build(Cursor::new(data))?;
-    Ok(Box::new(reader))
-}
-
-fn write_batches(
-    reader: &mut RecordBatchStream,
-    mut write: impl FnMut(&RecordBatch) -> Result<()>,
-) -> Result<()> {
-    for batch in reader {
-        let batch = batch.map_err(map_arrow)?;
-        write(&batch)?;
-    }
-    Ok(())
-}
-
-fn map_arrow(err: ArrowError) -> DbError {
-    DbError::Arrow(err)
+    decode_with_interchange(data, InterchangeFormat::JsonLines, Some(schema))
 }
 
 #[cfg(test)]
