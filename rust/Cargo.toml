@@ -1,6 +1,6 @@
 [package]
 name = "fsspec_db"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["the fsspec-db authors <dev@1kbgz.com>"]
 edition = "2021"
 license = "Apache-2.0"
