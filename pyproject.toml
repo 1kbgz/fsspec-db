@@ -227,10 +227,12 @@ section-order = [
 title = "fsspec-db"
 root = "README.md"
 pages = [
+    "docs/src/tutorial.md",
     "docs/src/concepts.md",
     "docs/src/paths.md",
     "docs/src/sqlite.md",
     "docs/src/sql-backends.md",
+    "docs/src/adapter-backends.md",
     "docs/src/python-backends.md",
     "docs/src/api.md",
 ]
