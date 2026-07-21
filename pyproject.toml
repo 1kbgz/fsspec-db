@@ -14,7 +14,7 @@ description = "Database handling for fsspec filesystems"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 version = "0.3.1"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 keywords = []
 
 classifiers = [
@@ -115,7 +115,7 @@ search = 'version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
 [tool.cibuildwheel]
-build = "cp311-*"
+build = "cp310-*"
 test-command = "pytest -vvv {project}/fsspec_db/tests"
 test-extras = "develop"
 
