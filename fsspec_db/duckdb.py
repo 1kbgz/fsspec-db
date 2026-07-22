@@ -71,6 +71,13 @@ class DuckDBDatabase(AbstractDatabase):
 class DuckDBDatabaseFileSystem(PyDatabaseFileSystem):
     protocol = "db+duckdb"
 
+    @classmethod
+    def _get_kwargs_from_urls(cls, path: str) -> dict[str, str]:
+        database = cls._strip_protocol(path)
+        if database == cls.root_marker:
+            return {}
+        return {"database": database}
+
     def __init__(self, database: str = ":memory:", *, connection: Any = None, **storage_options: Any) -> None:
         super().__init__(DuckDBDatabase(database, connection=connection), **storage_options)
 

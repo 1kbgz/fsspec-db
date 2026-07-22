@@ -388,6 +388,22 @@ def test_duckdb_backend_round_trips(tmp_path):
     assert fsspec.get_filesystem_class("db+duckdb") is DuckDBDatabaseFileSystem
 
 
+def test_duckdb_filesystem_url_path_reads(tmp_path, monkeypatch):
+    duckdb = pytest.importorskip("duckdb")
+    path = tmp_path / "app.duckdb"
+    with duckdb.connect(str(path)) as connection:
+        connection.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, name VARCHAR)")
+        connection.execute("INSERT INTO users VALUES (1, 'ada')")
+
+    monkeypatch.chdir(tmp_path)
+    fs, token = fsspec.core.url_to_fs("db+duckdb://app.duckdb")
+
+    assert token == "app.duckdb"
+    assert isinstance(fs, DuckDBDatabaseFileSystem)
+    assert fs.query("SELECT name FROM users").column("name").to_pylist() == ["ada"]
+    assert [entry["name"] for entry in fs.ls("/main")] == ["/main/users"]
+
+
 def test_odbc_backend_uses_arrow_odbc(monkeypatch):
     table = pa.table({"value": [1, 2]})
 
