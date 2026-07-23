@@ -67,7 +67,7 @@ class PostgresDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fssp
         return self._rust.cat_file(path, start, end)
 
     def query(self, sql: str, params: list[Any] | None = None) -> Any:
-        import pyarrow.ipc as ipc
+        from pyarrow import ipc
 
         with ipc.open_stream(self._rust.query_arrow(sql, params)) as reader:
             return reader.read_all()

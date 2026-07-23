@@ -14,8 +14,8 @@ import os
 
 import fsspec
 import pyarrow as pa
-import pyarrow.ipc as ipc
 import pytest
+from pyarrow import ipc
 
 sqlalchemy = pytest.importorskip("sqlalchemy")
 
