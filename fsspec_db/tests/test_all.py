@@ -12,10 +12,10 @@ import fsspec.config as fsspec_config
 import fsspec.dircache as fsspec_dircache
 import pyarrow as pa
 import pyarrow.csv as pacsv
-import pyarrow.ipc as ipc
 import pyarrow.json as pajson
 import pyarrow.parquet as pq
 import pytest
+from pyarrow import ipc
 
 import fsspec_db.mysql as mysql_mod
 import fsspec_db.postgres as postgres_mod
@@ -342,10 +342,9 @@ def test_direct_python_filesystem_discards_failed_write():
     db = MockDatabase()
     fs = PyDatabaseFileSystem(db)
 
-    with pytest.raises(RuntimeError):
-        with fs.open("/main/users.arrow", "wb") as file:
-            file.write(arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]})))
-            raise RuntimeError("abort")
+    with pytest.raises(RuntimeError), fs.open("/main/users.arrow", "wb") as file:
+        file.write(arrow_stream_bytes(pa.table({"id": [3], "name": ["lin"]})))
+        raise RuntimeError("abort")
 
     assert not any(str(query).startswith("insert:") for query in db.queries)
 
@@ -502,10 +501,9 @@ def test_python_filesystem_write_discards_on_context_error():
     fs = AbstractDatabaseFileSystem(db)
     data = arrow_stream_bytes(pa.table({"id": [3], "name": ["katherine"]}))
 
-    with pytest.raises(RuntimeError):
-        with fs.open("/main/users.arrow", "wb") as file:
-            file.write(data)
-            raise RuntimeError("abort")
+    with pytest.raises(RuntimeError), fs.open("/main/users.arrow", "wb") as file:
+        file.write(data)
+        raise RuntimeError("abort")
 
     assert db.queries == []
 
@@ -535,11 +533,10 @@ def test_python_filesystem_transaction_commits_and_discards():
     assert db.queries == ["insert:main.users:append:1"]
 
     db.queries.clear()
-    with pytest.raises(RuntimeError):
-        with fs.transaction:
-            with fs.open("/main/users.arrow", "wb") as file:
-                file.write(data)
-            raise RuntimeError("abort")
+    with pytest.raises(RuntimeError), fs.transaction:
+        with fs.open("/main/users.arrow", "wb") as file:
+            file.write(data)
+        raise RuntimeError("abort")
     assert db.queries == []
 
 

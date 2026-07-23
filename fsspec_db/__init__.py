@@ -33,9 +33,9 @@ __all__ = [
     "PostgresDatabaseFileSystem",
     "PyDatabaseFileSystem",
     "RelationInfo",
-    "SchemaInfo",
-    "SQLiteDatabaseFileSystem",
     "SQLAlchemyDatabase",
     "SQLAlchemyDatabaseFileSystem",
+    "SQLiteDatabaseFileSystem",
+    "SchemaInfo",
     "__version__",
 ]

@@ -3,15 +3,16 @@ from __future__ import annotations
 import io
 import json
 from dataclasses import dataclass
+from types import TracebackType
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
 import fsspec
 import pyarrow as pa
 import pyarrow.csv as pacsv
-import pyarrow.ipc as ipc
 import pyarrow.json as pajson
 import pyarrow.parquet as pq
+from pyarrow import ipc
 
 from .spec import AbstractDatabase, DatabaseDdlMixin, DeferredDatabaseFile, IntrospectionCacheMixin, _validate_open_mode
 
@@ -40,7 +41,12 @@ class _WriteBuffer(io.BytesIO):
             self._commit(self.getvalue())
         super().close()
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         if exc_type is not None:
             self._commit_enabled = False
         self.close()
