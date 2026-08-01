@@ -41,7 +41,7 @@ jobs:
       with:
         version: ${{ matrix.python-version }}
 
-    - uses: actions-ext/rust/setup@c9cdbe5cc8a2485bf2eb22644302559c741ca763
+    - uses: actions-ext/rust/setup@3de300f3071e758a1dd8545b884288a35e5d7f81
 
     - name: Install dependencies
       run: make develop
