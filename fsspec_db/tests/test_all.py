@@ -1,4 +1,3 @@
-<<<<<<< before updating
 import gc
 import io
 import json
@@ -7,9 +6,6 @@ import sqlite3
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-=======
-from fsspec_db import *
->>>>>>> after updating
 
 import fsspec
 import fsspec.config as fsspec_config
