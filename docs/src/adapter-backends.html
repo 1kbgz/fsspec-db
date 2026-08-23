@@ -251,15 +251,15 @@ as the native Rust SQL backends.</p>
 <section id="connect-duckdb">
 <h2>Connect DuckDB<a class="headerlink" href="#connect-duckdb" title="Link to this heading">¶</a></h2>
 <p>Install the DuckDB extra:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python -m pip install &#39;fsspec-db[duckdb]&#39;</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python -m pip install 'fsspec-db[duckdb]'</span>
 </pre></div>
 </div>
 <p>Open a database file:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
 
-<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;db+duckdb&quot;</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">&quot;warehouse.duckdb&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
-<span class="n">orders</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM orders LIMIT ?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">100</span><span class="p">])</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">"db+duckdb"</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">"warehouse.duckdb"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">orders</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">"SELECT * FROM orders LIMIT ?"</span><span class="p">,</span> <span class="p">[</span><span class="mi">100</span><span class="p">])</span>
 </pre></div>
 </div>
 <p>To reuse an existing connection, construct the class directly:</p>
@@ -267,7 +267,7 @@ as the native Rust SQL backends.</p>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">fsspec_db</span><span class="w"> </span><span class="kn">import</span> <span class="n">DuckDBDatabaseFileSystem</span>
 
-<span class="n">connection</span> <span class="o">=</span> <span class="n">duckdb</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;warehouse.duckdb&quot;</span><span class="p">)</span>
+<span class="n">connection</span> <span class="o">=</span> <span class="n">duckdb</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">"warehouse.duckdb"</span><span class="p">)</span>
 <span class="n">fs</span> <span class="o">=</span> <span class="n">DuckDBDatabaseFileSystem</span><span class="p">(</span><span class="n">connection</span><span class="o">=</span><span class="n">connection</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -281,8 +281,8 @@ as the native Rust SQL backends.</p>
 <p>Pass a SQLAlchemy URL through the registered protocol:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
 
-<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;db+sqlalchemy&quot;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s2">&quot;sqlite:///warehouse.db&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">"db+sqlalchemy"</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s2">"sqlite:///warehouse.db"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
 </pre></div>
 </div>
 <p>Reuse an engine when the application already owns connection pooling:</p>
@@ -290,7 +290,7 @@ as the native Rust SQL backends.</p>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">fsspec_db</span><span class="w"> </span><span class="kn">import</span> <span class="n">SQLAlchemyDatabaseFileSystem</span>
 
-<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="s2">&quot;sqlite:///warehouse.db&quot;</span><span class="p">)</span>
+<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="s2">"sqlite:///warehouse.db"</span><span class="p">)</span>
 <span class="n">fs</span> <span class="o">=</span> <span class="n">SQLAlchemyDatabaseFileSystem</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -298,17 +298,17 @@ as the native Rust SQL backends.</p>
 <section id="connect-through-odbc">
 <h2>Connect through ODBC<a class="headerlink" href="#connect-through-odbc" title="Link to this heading">¶</a></h2>
 <p>Install the ODBC extra and an operating-system ODBC driver for the target database:</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python -m pip install &#39;fsspec-db[odbc]&#39;</span>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python -m pip install 'fsspec-db[odbc]'</span>
 </pre></div>
 </div>
 <p>Pass the driver’s connection string:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span>
-    <span class="s2">&quot;db+odbc&quot;</span><span class="p">,</span>
-    <span class="n">connection_string</span><span class="o">=</span><span class="s2">&quot;Driver={PostgreSQL Unicode};Server=localhost;Database=warehouse&quot;</span><span class="p">,</span>
-    <span class="n">user</span><span class="o">=</span><span class="s2">&quot;analyst&quot;</span><span class="p">,</span>
-    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;secret&quot;</span><span class="p">,</span>
+    <span class="s2">"db+odbc"</span><span class="p">,</span>
+    <span class="n">connection_string</span><span class="o">=</span><span class="s2">"Driver={PostgreSQL Unicode};Server=localhost;Database=warehouse"</span><span class="p">,</span>
+    <span class="n">user</span><span class="o">=</span><span class="s2">"analyst"</span><span class="p">,</span>
+    <span class="n">password</span><span class="o">=</span><span class="s2">"secret"</span><span class="p">,</span>
     <span class="n">batch_size</span><span class="o">=</span><span class="mi">65535</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
@@ -319,10 +319,10 @@ source files; supply them through the application’s normal secret or configura
 <section id="use-the-common-filesystem-surface">
 <h2>Use the common filesystem surface<a class="headerlink" href="#use-the-common-filesystem-surface" title="Link to this heading">¶</a></h2>
 <p>After construction, all three adapters support the database path model:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/orders/columns/order_id&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/orders.arrow?limit=100&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/main/orders/columns/order_id"</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">"/main/orders.arrow?limit=100"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Backend metadata capabilities vary with the database and driver. See the <a class="reference internal" href="paths.html"><span class="std std-doc">path

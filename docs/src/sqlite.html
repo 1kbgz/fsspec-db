@@ -251,7 +251,7 @@ Python as the <code class="docutils literal notranslate"><span class="pre">db+sq
 <h2>Construction<a class="headerlink" href="#construction" title="Link to this heading">¶</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
 
-<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;db+sqlite&quot;</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">&quot;app.db&quot;</span><span class="p">)</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">"db+sqlite"</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">"app.db"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">database</span></code> can be a filesystem path, <code class="docutils literal notranslate"><span class="pre">:memory:</span></code>, or a SQLite URL such as
@@ -259,16 +259,16 @@ Python as the <code class="docutils literal notranslate"><span class="pre">db+sq
 <p>You can also construct the class directly:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">fsspec_db</span><span class="w"> </span><span class="kn">import</span> <span class="n">SQLiteDatabaseFileSystem</span>
 
-<span class="n">fs</span> <span class="o">=</span> <span class="n">SQLiteDatabaseFileSystem</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="s2">&quot;app.db&quot;</span><span class="p">)</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">SQLiteDatabaseFileSystem</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="s2">"app.db"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="reading-metadata">
 <h2>Reading Metadata<a class="headerlink" href="#reading-metadata" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/users&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/users/columns/id&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/main/users"</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/main/users/columns/id"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The backend introspects:</p>
@@ -286,13 +286,13 @@ Schema listings do not count every table.</p>
 <h2>Reading Data<a class="headerlink" href="#reading-data" title="Link to this heading">¶</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.ipc</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ipc</span>
 
-<span class="k">with</span> <span class="n">ipc</span><span class="o">.</span><span class="n">open_stream</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">ipc</span><span class="o">.</span><span class="n">open_stream</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">"/main/users.arrow"</span><span class="p">))</span> <span class="k">as</span> <span class="n">reader</span><span class="p">:</span>
     <span class="n">table</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
 
-<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"/main/users.arrow"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
     <span class="n">head</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
 
-<span class="n">table</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;SELECT id, name FROM users WHERE id &gt; ?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">"SELECT id, name FROM users WHERE id &gt; ?"</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 </pre></div>
 </div>
 <p>The native path releases the Python GIL while SQLite I/O is running.</p>
@@ -308,12 +308,12 @@ incoming rows. Use <code class="docutils literal notranslate"><span class="pre">
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.ipc</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ipc</span>
 
-<span class="n">table</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;ada&quot;</span><span class="p">],</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]})</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"ada"</span><span class="p">],</span> <span class="s2">"score"</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]})</span>
 <span class="n">sink</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">BufferOutputStream</span><span class="p">()</span>
 <span class="k">with</span> <span class="n">ipc</span><span class="o">.</span><span class="n">new_stream</span><span class="p">(</span><span class="n">sink</span><span class="p">,</span> <span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="p">)</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
     <span class="n">writer</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
 
-<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"/main/users.arrow"</span><span class="p">,</span> <span class="s2">"ab"</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
     <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">sink</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">to_pybytes</span><span class="p">())</span>
 </pre></div>
 </div>
@@ -326,12 +326,12 @@ unclosed handles are discarded.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.parquet</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pq</span>
 
-<span class="n">pq</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;grace&quot;</span><span class="p">],</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">2.0</span><span class="p">]}),</span> <span class="s2">&quot;rows.parquet&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">put_file</span><span class="p">(</span><span class="s2">&quot;rows.parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;/main/users.parquet&quot;</span><span class="p">)</span>
+<span class="n">pq</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"grace"</span><span class="p">],</span> <span class="s2">"score"</span><span class="p">:</span> <span class="p">[</span><span class="mf">2.0</span><span class="p">]}),</span> <span class="s2">"rows.parquet"</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">put_file</span><span class="p">(</span><span class="s2">"rows.parquet"</span><span class="p">,</span> <span class="s2">"/main/users.parquet"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">put_file</span></code> truncates by default. Pass <code class="docutils literal notranslate"><span class="pre">mode=&quot;append&quot;</span></code> to append:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">put_file</span><span class="p">(</span><span class="s2">&quot;rows.parquet&quot;</span><span class="p">,</span> <span class="s2">&quot;/main/users.parquet&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;append&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">put_file</span><span class="p">(</span><span class="s2">"rows.parquet"</span><span class="p">,</span> <span class="s2">"/main/users.parquet"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"append"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>

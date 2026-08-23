@@ -248,8 +248,8 @@
 <p>fsspec-db paths are absolute, protocol-free paths once a filesystem is constructed.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
 
-<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;db+sqlite&quot;</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">&quot;app.db&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">)</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">"db+sqlite"</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">"app.db"</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main"</span><span class="p">)</span>
 </pre></div>
 </div>
 <section id="grammar">
@@ -320,26 +320,26 @@
 </section>
 <section id="listing">
 <h2>Listing<a class="headerlink" href="#listing" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="c1"># [&quot;/main&quot;]</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1"># ["/main"]</span>
 
-<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="c1"># [&quot;/main/users&quot;, &quot;/main/active_users&quot;]</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1"># ["/main/users", "/main/active_users"]</span>
 
-<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main/users&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="c1"># [&quot;/main/users/columns&quot;, &quot;/main/users/indexes&quot;, &quot;/main/users/constraints&quot;]</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main/users"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1"># ["/main/users/columns", "/main/users/indexes", "/main/users/constraints"]</span>
 </pre></div>
 </div>
 <p>Use <code class="docutils literal notranslate"><span class="pre">detail=True</span></code> to get fsspec info dictionaries:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main/users/columns&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main/users/columns"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="metadata">
 <h2>Metadata<a class="headerlink" href="#metadata" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/users&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/users/columns/id&quot;</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/users/indexes/idx_users_name&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/main/users"</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/main/users/columns/id"</span><span class="p">)</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/main/users/indexes/idx_users_name"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Relation info includes <code class="docutils literal notranslate"><span class="pre">kind</span></code> and may include <code class="docutils literal notranslate"><span class="pre">row_count</span></code>. Column info includes database
@@ -374,7 +374,7 @@ type, nullability, ordinal position, and primary-key status.</p>
 </div>
 <p>Query values are URL-decoded, so percent-encoded predicates such as
 <code class="docutils literal notranslate"><span class="pre">?where=score%20%3E%2010</span></code> are equivalent to the unencoded form.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow?columns=id,name&amp;limit=10&amp;where=id &gt; 0&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">"/main/users.arrow?columns=id,name&amp;limit=10&amp;where=id &gt; 0"</span><span class="p">)</span>
 </pre></div>
 </div>
 <section id="where-predicate-pushdown">
@@ -383,8 +383,8 @@ type, nullability, ordinal position, and primary-key status.</p>
 re-serialized from its AST, and appended as a <code class="docutils literal notranslate"><span class="pre">WHERE</span></code> clause. Because only a parsed expression
 is ever emitted, multi-statement or non-expression payloads are rejected with a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code>
 rather than interpolated:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow?where=score &gt; 10&quot;</span><span class="p">)</span>          <span class="c1"># ok</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow?where=1); DROP TABLE x;--&quot;</span><span class="p">)</span>  <span class="c1"># rejected</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">"/main/users.arrow?where=score &gt; 10"</span><span class="p">)</span>          <span class="c1"># ok</span>
+<span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">"/main/users.arrow?where=1); DROP TABLE x;--"</span><span class="p">)</span>  <span class="c1"># rejected</span>
 </pre></div>
 </div>
 <p>For arbitrary SQL beyond a single predicate, use <code class="docutils literal notranslate"><span class="pre">fs.query()</span></code>.</p>
@@ -393,7 +393,7 @@ rather than interpolated:</p>
 <section id="write-paths">
 <h2>Write Paths<a class="headerlink" href="#write-paths" title="Link to this heading">¶</a></h2>
 <p>Write to the same data paths used for reads:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;/main/users.arrow&quot;</span><span class="p">,</span> <span class="s2">&quot;ab&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"/main/users.arrow"</span><span class="p">,</span> <span class="s2">"ab"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">arrow_ipc_bytes</span><span class="p">)</span>
 </pre></div>
 </div>

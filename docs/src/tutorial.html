@@ -259,11 +259,11 @@ and reads a table as Arrow data.</p>
 <p>Create <code class="docutils literal notranslate"><span class="pre">create_library.py</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sqlite3</span>
 
-<span class="k">with</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;library.db&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">connection</span><span class="p">:</span>
-    <span class="n">connection</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;CREATE TABLE books (id INTEGER PRIMARY KEY, title TEXT NOT NULL)&quot;</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">"library.db"</span><span class="p">)</span> <span class="k">as</span> <span class="n">connection</span><span class="p">:</span>
+    <span class="n">connection</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"CREATE TABLE books (id INTEGER PRIMARY KEY, title TEXT NOT NULL)"</span><span class="p">)</span>
     <span class="n">connection</span><span class="o">.</span><span class="n">executemany</span><span class="p">(</span>
-        <span class="s2">&quot;INSERT INTO books (title) VALUES (?)&quot;</span><span class="p">,</span>
-        <span class="p">[(</span><span class="s2">&quot;The Left Hand of Darkness&quot;</span><span class="p">,),</span> <span class="p">(</span><span class="s2">&quot;Kindred&quot;</span><span class="p">,),</span> <span class="p">(</span><span class="s2">&quot;Piranesi&quot;</span><span class="p">,)],</span>
+        <span class="s2">"INSERT INTO books (title) VALUES (?)"</span><span class="p">,</span>
+        <span class="p">[(</span><span class="s2">"The Left Hand of Darkness"</span><span class="p">,),</span> <span class="p">(</span><span class="s2">"Kindred"</span><span class="p">,),</span> <span class="p">(</span><span class="s2">"Piranesi"</span><span class="p">,)],</span>
     <span class="p">)</span>
 </pre></div>
 </div>
@@ -278,11 +278,11 @@ and reads a table as Arrow data.</p>
 <p>Create <code class="docutils literal notranslate"><span class="pre">browse_library.py</span></code> and construct the registered SQLite filesystem:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
 
-<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">&quot;db+sqlite&quot;</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">&quot;library.db&quot;</span><span class="p">)</span>
+<span class="n">fs</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span><span class="s2">"db+sqlite"</span><span class="p">,</span> <span class="n">database</span><span class="o">=</span><span class="s2">"library.db"</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">&quot;/main/books/columns&quot;</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main/books/columns"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
 </pre></div>
 </div>
 <p>Run the script:</p>
@@ -290,20 +290,20 @@ and reads a table as Arrow data.</p>
 </pre></div>
 </div>
 <p>The output shows one schema, its table, and the table’s columns:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[&#39;/main&#39;]
-[&#39;/main/books&#39;]
-[&#39;/main/books/columns/id&#39;, &#39;/main/books/columns/title&#39;]
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>['/main']
+['/main/books']
+['/main/books/columns/id', '/main/books/columns/title']
 </pre></div>
 </div>
 </section>
 <section id="inspect-metadata">
 <h2>Inspect metadata<a class="headerlink" href="#inspect-metadata" title="Link to this heading">¶</a></h2>
 <p>Add these lines:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">book_info</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/books&quot;</span><span class="p">)</span>
-<span class="n">title_info</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;/main/books/columns/title&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">book_info</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/main/books"</span><span class="p">)</span>
+<span class="n">title_info</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/main/books/columns/title"</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="n">book_info</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">])</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">title_info</span><span class="p">[</span><span class="s2">&quot;data_type&quot;</span><span class="p">],</span> <span class="n">title_info</span><span class="p">[</span><span class="s2">&quot;nullable&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">book_info</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">title_info</span><span class="p">[</span><span class="s2">"data_type"</span><span class="p">],</span> <span class="n">title_info</span><span class="p">[</span><span class="s2">"nullable"</span><span class="p">])</span>
 </pre></div>
 </div>
 <p>Run the script again. The final lines identify a table and its required text column:</p>
@@ -315,18 +315,18 @@ TEXT False
 <section id="read-table-data">
 <h2>Read table data<a class="headerlink" href="#read-table-data" title="Link to this heading">¶</a></h2>
 <p>Add a bounded query:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">table</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;SELECT id, title FROM books ORDER BY id LIMIT ?&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">table</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">"SELECT id, title FROM books ORDER BY id LIMIT ?"</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">])</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">to_pylist</span><span class="p">())</span>
 </pre></div>
 </div>
 <p>The result is a <code class="docutils literal notranslate"><span class="pre">pyarrow.Table</span></code>:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[{&#39;id&#39;: 1, &#39;title&#39;: &#39;The Left Hand of Darkness&#39;}, {&#39;id&#39;: 2, &#39;title&#39;: &#39;Kindred&#39;}]
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[{'id': 1, 'title': 'The Left Hand of Darkness'}, {'id': 2, 'title': 'Kindred'}]
 </pre></div>
 </div>
 <p>Read the same relation through a materialized filesystem path:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.parquet</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pq</span>
 
-<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;/main/books.parquet?limit=2&quot;</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+<span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"/main/books.parquet?limit=2"</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
     <span class="n">materialized</span> <span class="o">=</span> <span class="n">pq</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">materialized</span><span class="o">.</span><span class="n">num_rows</span><span class="p">)</span>
