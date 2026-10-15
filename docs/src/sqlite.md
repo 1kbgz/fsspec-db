@@ -1,9 +1,10 @@
-# SQLite
+# How to read and write SQLite data
 
-SQLite is the first native backend. It is implemented in Rust with sqlx and exposed to
-Python as the `db+sqlite` fsspec protocol.
+Install `fsspec-db` and connect to an existing database:
 
-## Construction
+```console
+python -m pip install fsspec-db
+```
 
 ```python
 import fsspec
@@ -11,108 +12,55 @@ import fsspec
 fs = fsspec.filesystem("db+sqlite", database="app.db")
 ```
 
-`database` can be a filesystem path, `:memory:`, or a SQLite URL such as
-`sqlite:///tmp/app.db`.
+The examples below require a `users` table with `name TEXT` and `score REAL`
+columns. For a complete database setup, start with the [tutorial](tutorial.md).
 
-You can also construct the class directly:
-
-```python
-from fsspec_db import SQLiteDatabaseFileSystem
-
-fs = SQLiteDatabaseFileSystem(database="app.db")
-```
-
-## Reading Metadata
+## Inspect and read
 
 ```python
 fs.ls("/", detail=False)
 fs.ls("/main", detail=False)
-fs.info("/main/users")
-fs.info("/main/users/columns/id")
+fs.info("/main/users/columns/name")
+table = fs.query("SELECT name, score FROM users WHERE score > ?", [1.0])
 ```
 
-The backend introspects:
-
-- schemas from `PRAGMA database_list`;
-- tables and views from `sqlite_master`;
-- columns from `PRAGMA table_info`;
-- indexes from `PRAGMA index_list` and `PRAGMA index_info`;
-- primary keys and foreign keys from `PRAGMA table_info` and `PRAGMA foreign_key_list`.
-
-Relation lookups check only the requested relation and count rows only for that relation.
-Schema listings do not count every table.
-
-## Reading Data
+Read a format-selecting path when the consumer needs a file:
 
 ```python
 import pyarrow.ipc as ipc
 
-with ipc.open_stream(fs.cat_file("/main/users.arrow")) as reader:
-    table = reader.read_all()
-
-with fs.open("/main/users.arrow", "rb") as file:
-    head = file.read(1024)
-
-table = fs.query("SELECT id, name FROM users WHERE id > ?", [0])
+with fs.open("/main/users.arrow?limit=100", "rb") as file:
+    table = ipc.open_stream(file).read_all()
 ```
 
-The native path releases the Python GIL while SQLite I/O is running.
+## Append rows
 
-## Writing Arrow IPC
-
-```{warning}
-Overwrite writes replace the table contents. `open(path, "wb")`, default `pipe_file`, and
-default `put_file` delete existing rows inside the write transaction before inserting the
-incoming rows. Use `"ab"` or `mode="append"` to preserve existing rows.
-```
+Encode rows as Arrow IPC and close the handle to commit:
 
 ```python
 import pyarrow as pa
 import pyarrow.ipc as ipc
 
-table = pa.table({"name": ["ada"], "score": [1.0]})
+rows = pa.table({"name": ["Ada"], "score": [1.0]})
 sink = pa.BufferOutputStream()
-with ipc.new_stream(sink, table.schema) as writer:
-    writer.write_table(table)
-
+with ipc.new_stream(sink, rows.schema) as writer:
+    writer.write_table(rows)
 with fs.open("/main/users.arrow", "ab") as file:
     file.write(sink.getvalue().to_pybytes())
 ```
 
-`"ab"` appends rows. `"wb"` truncates the table with `DELETE FROM` inside the same
-transaction, then inserts rows. The Rust-backed write handle commits when it closes;
-unclosed handles are discarded.
+Use `"wb"` only when replacing all existing rows. An exception inside the write
+context discards a native write instead of committing it.
 
-## Writing Parquet
+## Import a Parquet file
 
 ```python
-import pyarrow as pa
 import pyarrow.parquet as pq
 
-pq.write_table(pa.table({"name": ["grace"], "score": [2.0]}), "rows.parquet")
-fs.put_file("rows.parquet", "/main/users.parquet")
-```
-
-`put_file` truncates by default. Pass `mode="append"` to append:
-
-```python
+pq.write_table(rows, "rows.parquet")
 fs.put_file("rows.parquet", "/main/users.parquet", mode="append")
 ```
 
-## Type Handling
-
-SQLite values are converted into Arrow arrays with a small affinity mapper. Query results use
-declared column metadata plus observed non-null runtime value types, so NULL-first and mixed
-numeric expression columns can still produce numeric Arrow arrays.
-
-| SQLite value/type | Arrow type |
-| ----------------- | ---------- |
-| boolean-like      | `bool`     |
-| integer-like      | `int64`    |
-| real/float/double | `float64`  |
-| blob/binary       | `binary`   |
-| everything else   | `utf8`     |
-
-For writes, Arrow `Null` columns bind SQLite `NULL`. Temporal arrays are bound as integer
-epoch values. When a query produces mixed SQLite runtime types in one expression column,
-cast explicitly in SQL for predictable Arrow output.
+Omit `mode="append"` to replace existing rows. The destination table must already
+exist. See [Backend configuration and types](backends.md) for type mappings and
+[How to manage tables and metadata caches](how-to-manage.md) for table creation.

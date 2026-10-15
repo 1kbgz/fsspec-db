@@ -1,91 +1,49 @@
-# Concepts
+# Why database objects have filesystem paths
 
-`fsspec-db` maps database structure onto the fsspec filesystem model. Schemas, tables,
-views, columns, indexes, and constraints become paths. Table data becomes files whose
-extension selects the transfer format.
+fsspec tools expect directory listings, metadata, and file-like reads. Mapping SQL
+objects to those operations lets a browser or data consumer use a database through
+an interface it already understands.
 
-## Layers
+## Relations have structure and data
 
-The implementation has three layers:
+A table or view is directory-like because it contains metadata facets: columns,
+indexes, constraints, and view dependencies. Rows are separate virtual files,
+selected by an extension on the relation path. This avoids confusing a table's
+structure with a particular encoding of its data.
 
-1. A Rust `Database` trait describes database primitives: list schemas, list relations,
-   inspect metadata, run queries, and insert Arrow batches.
-1. Rust `DatabaseFs<D>` turns a `Database` implementation into an `fsspec_rs::FileSystem`.
-   It owns path parsing, metadata shaping, SQL generation for table reads, and format
-   encoding/decoding.
-1. Python filesystem classes subclass `fsspec.AbstractFileSystem` and delegate primitives
-   to the PyO3 bridge. Python gets normal fsspec behavior while Rust remains the source of
-   truth for database path semantics.
+Those files are generated representations rather than stored database objects.
+Reading Parquet runs a query and encodes its result. A reported byte size may be
+unknown until encoding completes. A small byte read is therefore not necessarily
+a cheap database query.
 
-The native SQLite, PostgreSQL, and MySQL backends use sqlx. Python-defined databases
-implement `AbstractDatabase`; the reverse bridge lets Rust call that Python object through
-the same `DatabaseFs` path.
+## One mapping supports several database implementations
 
-## Data Model
+The Rust `Database` trait owns database primitives. `DatabaseFs` turns them into
+filesystem behavior: parsing paths, generating SQL, and encoding data. Python
+classes inherit from `AbstractFileSystem` and delegate those primitives through
+PyO3, retaining fsspec's surrounding interface.
 
-`info()` and `ls(detail=True)` return ordinary fsspec dictionaries with these common keys:
+Native SQL backends use sqlx. Python adapters implement `AbstractDatabase`. They can use the reverse bridge or
+the direct `PyDatabaseFileSystem` implementation of the same path model. Metadata depth and type fidelity
+still depend on the underlying database and adapter.
 
-| Key    | Meaning                                                                                              |
-| ------ | ---------------------------------------------------------------------------------------------------- |
-| `name` | Absolute fsspec-db path, without protocol.                                                           |
-| `type` | `"directory"` for schemas, relations, and facets; `"file"` for metadata items and materialized data. |
-| `size` | Byte size when known. Materialized table reads usually learn size only after encoding.               |
-| `kind` | fsspec-db object kind, such as `schema`, `table`, `view`, `column`, `index`, or `constraint`.        |
+## SQL and path reads serve different needs
 
-Extra metadata is stored directly in the same dictionary:
+A relation path expresses a bounded selection from one relation. A SQL query can
+express joins, aggregations, or database-specific operations. Both return Arrow
+data, but a common representation does not make every database type portable.
+Explicit SQL casts can make type conversion predictable across backends.
 
-| Path               | Extra fields                                                           |
-| ------------------ | ---------------------------------------------------------------------- |
-| Relation directory | `kind`, optional `row_count`, optional `size_bytes`.                   |
-| Column item        | `data_type`, `nullable`, `ordinal`, `primary_key`, optional `default`. |
-| Index item         | `columns`, `unique`, optional `method`.                                |
-| Constraint item    | `kind`, `columns`, optional `references`, optional `expr`.             |
-| Data file          | `format`, `dialect`, `size_known`.                                     |
+## Writes and transactions cross another boundary
 
-## Reads
+Writing a data file decodes rows and inserts them into an existing relation.
+Overwrite replaces rows; append retains them. Guarded filesystem DDL methods
+create, rename, or remove relations separately.
 
-Reading a data path runs a generated `SELECT` against the relation, converts rows to Arrow,
-then encodes the result based on the path extension:
+A native write handle commits on successful close and discards on an exceptional
+context exit. Deferred fsspec transactions postpone each file commit, but they do
+not make several independent file commits one atomic database transaction. Adapter
+transaction behavior can also differ from native backends.
 
-| Extension  | Bytes returned                    |
-| ---------- | --------------------------------- |
-| `.arrow`   | Arrow IPC stream                  |
-| `.parquet` | Parquet                           |
-| `.csv`     | CSV with a header                 |
-| `.jsonl`   | Arrow JSON line-delimited records |
-| `.sql`     | DDL or view definition text       |
-
-`fs.query(sql, params=None)` is intentionally separate from path reads. It accepts raw SQL,
-binds parameters, and returns a `pyarrow.Table`.
-
-`open(path, "rb")` returns a Rust-backed file object with chunked `read(size)`, `seek`,
-and `tell`. `cat_file()` still buffers the full encoded result.
-
-## Writes
-
-Writes decode incoming Arrow-compatible bytes and call `Database.insert()`:
-
-| Operation                               | Insert mode                         |
-| --------------------------------------- | ----------------------------------- |
-| `open(path, "wb")`                      | truncate relation, then insert rows |
-| `open(path, "ab")`                      | append rows                         |
-| `pipe_file(path, bytes)`                | truncate by default                 |
-| `pipe_file(path, bytes, mode="append")` | append                              |
-| `put_file(local, path)`                 | truncate by default                 |
-| `put_file(local, path, mode="append")`  | append                              |
-
-`open(path, "wb")` and `open(path, "ab")` return Rust-backed write handles. Data is
-committed when the file closes, and context-manager exits discard the write if an exception
-is raised. Unclosed write handles are discarded rather than committed during garbage
-collection. `put_file()` copies local bytes into the same Rust write path in chunks. The
-current codecs still decode the completed byte stream at commit time.
-
-DDL writes are deliberately not part of the early surface. Creating or dropping tables will
-be a guarded later feature.
-
-## Boundaries
-
-Current native support is SQLite, PostgreSQL, and MySQL. These backends handle common
-Arrow scalar types: booleans, integers, floats, UTF-8 strings, binary values, and all-null
-columns. SQLite also binds temporal arrays as integer epoch values. Decimal, temporal, and
-specialized PostgreSQL/MySQL types should be cast in SQL until richer Arrow mappings land.
+See [Paths and metadata](paths.md) for the namespace and
+[How to manage tables and metadata caches](how-to-manage.md) for mutation tasks.

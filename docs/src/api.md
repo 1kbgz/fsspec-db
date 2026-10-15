@@ -1,8 +1,7 @@
-# API
+# Python API reference
 
-The public Python API is intentionally small. Most users construct a registered backend
-through `fsspec.filesystem(...)`; backend authors use `AbstractDatabase` and one of the
-Python filesystem adapters.
+Registered backend classes inherit from `fsspec.AbstractFileSystem`.
+`AbstractDatabase` defines the custom Python backend contract.
 
 ## Package Exports
 
@@ -15,7 +14,7 @@ Python filesystem adapters.
 
 ```{eval-rst}
 .. automodule:: fsspec_db.spec
-   :members: AbstractDatabase, AbstractDatabaseFileSystem, DBFile
+   :members: AbstractDatabase, AbstractDatabaseFileSystem, DBFile, DatabaseDdlMixin, IntrospectionCacheMixin, DeferredDatabaseFile
    :show-inheritance:
 ```
 

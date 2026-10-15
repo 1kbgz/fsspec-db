@@ -1,76 +1,38 @@
 # fsspec-db
 
-Database tables and views as fsspec filesystems.
+Browse SQL metadata and transfer table data through fsspec.
 
 [![Build Status](https://github.com/1kbgz/fsspec-db/actions/workflows/build.yaml/badge.svg?branch=main&event=push)](https://github.com/1kbgz/fsspec-db/actions/workflows/build.yaml)
 [![codecov](https://codecov.io/gh/1kbgz/fsspec-db/branch/main/graph/badge.svg)](https://codecov.io/gh/1kbgz/fsspec-db)
 [![License](https://img.shields.io/github/license/1kbgz/fsspec-db)](https://github.com/1kbgz/fsspec-db)
 [![PyPI](https://img.shields.io/pypi/v/fsspec-db.svg)](https://pypi.python.org/pypi/fsspec-db)
 
-## Overview
+`fsspec-db` maps schemas, tables, views, and their metadata to filesystem paths.
+Relation extensions select Arrow IPC, Parquet, CSV, or JSONL; SQL queries return
+PyArrow tables. Native backends support SQLite, PostgreSQL, and MySQL. Python
+adapters support DuckDB, SQLAlchemy, and ODBC.
 
-`fsspec-db` exposes SQL databases through familiar fsspec operations:
+## Start here
 
-- `ls("/")` lists schemas.
-- `ls("/main")` lists tables and views.
-- `info("/main/users/columns/id")` returns column metadata.
-- `cat_file("/main/users.parquet")` materializes a table as bytes.
-- `query("SELECT ...")` returns a `pyarrow.Table`.
-- `open("/main/users.arrow", "wb")` or `put_file(..., "/main/users.parquet")` inserts rows.
+[Browse a SQLite database](docs/src/tutorial.md) creates a database and reads it
+through metadata paths, SQL, and Parquet.
 
-Native backends are registered as `db+sqlite`, `db+postgresql` / `db+postgres`, and
-`db+mysql`. Python adapters provide `db+duckdb`, `db+sqlalchemy`, and `db+odbc`.
+## How-to guides
 
-> [!WARNING]
-> Database overwrite writes replace table contents. `open(path, "wb")`, `pipe_file`, and
-> default `put_file` run truncate semantics before inserting incoming rows. Use `"ab"` or
-> `mode="append"` to append instead.
+[Read and write SQLite data](docs/src/sqlite.md),
+[connect PostgreSQL or MySQL](docs/src/sql-backends.md), or
+[connect Python database adapters](docs/src/adapter-backends.md).
+[Manage tables and metadata caches](docs/src/how-to-manage.md) covers opt-in DDL,
+refreshing introspection, and deferred writes.
 
-## Install
+## Reference and explanation
 
-```bash
-pip install fsspec-db
-```
+Consult [Paths and metadata](docs/src/paths.md),
+[backend configuration and types](docs/src/backends.md),
+[Python backend contracts](docs/src/python-backends.md), and the
+[Python API](docs/src/api.md) for exact behavior.
+Read [Why database objects have filesystem paths](docs/src/concepts.md) for the
+mapping and its limits.
 
-## Quick Start
-
-```python
-import fsspec
-import pyarrow as pa
-import pyarrow.ipc as ipc
-
-fs = fsspec.filesystem("db+sqlite", database="app.db")
-
-print(fs.ls("/", detail=False))
-print(fs.ls("/main", detail=False))
-print(fs.info("/main/users"))
-
-table = fs.query("SELECT id, name FROM users WHERE id > ?", [0])
-
-with fs.open("/main/users.arrow", "ab") as file:
-    sink = pa.BufferOutputStream()
-    with ipc.new_stream(sink, pa.table({"name": ["ada"]}).schema) as writer:
-        writer.write_table(pa.table({"name": ["ada"]}))
-    file.write(sink.getvalue().to_pybytes())
-```
-
-## Path Shape
-
-```text
-/main
-/main/users
-/main/users/columns/id
-/main/users/indexes/idx_users_name
-/main/users.arrow
-/main/users.parquet
-/main/active_users/definition.sql
-```
-
-## Documentation
-
-- [Browse a SQLite database](docs/src/tutorial.md): guided first use.
-- [Use SQLite](docs/src/sqlite.md), [PostgreSQL or MySQL](docs/src/sql-backends.md), or
-  [Python database adapters](docs/src/adapter-backends.md): task-oriented guides.
-- [Understand the filesystem mapping](docs/src/concepts.md): architecture and boundaries.
-- [Look up paths](docs/src/paths.md), [custom Python backend contracts](docs/src/python-backends.md),
-  and the [Python API](docs/src/api.md): factual reference.
+Database overwrite writes replace table contents. Use `"ab"` or `mode="append"`
+to preserve existing rows.
