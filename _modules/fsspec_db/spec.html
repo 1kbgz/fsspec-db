@@ -198,13 +198,15 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../docs/src/tutorial.html">Browse a SQLite database as a filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/src/concepts.html">Concepts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/src/paths.html">Paths</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/src/sqlite.html">SQLite</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/src/sql-backends.html">PostgreSQL and MySQL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/src/sqlite.html">How to read and write SQLite data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/src/sql-backends.html">How to connect PostgreSQL or MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../docs/src/adapter-backends.html">How to connect Python database adapters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/src/python-backends.html">Python Backends</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../docs/src/api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/src/how-to-manage.html">How to manage tables and metadata caches</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/src/paths.html">Paths and metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/src/backends.html">Backend configuration and types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/src/python-backends.html">Python backend contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/src/api.html">Python API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../docs/src/concepts.html">Why database objects have filesystem paths</a></li>
 </ul>
 
 </div>
@@ -263,6 +265,8 @@
 <span class="n">_INFO_CACHE_PREFIX</span> <span class="o">=</span> <span class="s2">"__fsspec_db_info__:"</span>
 
 
+<div class="viewcode-block" id="IntrospectionCacheMixin">
+<a class="viewcode-back" href="../../docs/src/api.html#fsspec_db.IntrospectionCacheMixin">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">IntrospectionCacheMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Cache database listings and metadata using fsspec's bounded TTL cache."""</span>
 
@@ -301,9 +305,12 @@
         <span class="n">rust</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_rust"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">rust</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">rust</span><span class="p">,</span> <span class="s2">"invalidate_cache"</span><span class="p">):</span>
             <span class="n">rust</span><span class="o">.</span><span class="n">invalidate_cache</span><span class="p">()</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">invalidate_cache</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">invalidate_cache</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
 
 
+
+<div class="viewcode-block" id="DatabaseDdlMixin">
+<a class="viewcode-back" href="../../docs/src/api.html#fsspec_db.DatabaseDdlMixin">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">DatabaseDdlMixin</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Guarded database DDL mapped onto fsspec mutation methods."""</span>
 
@@ -357,7 +364,8 @@
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_require_ddl</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"allow_ddl"</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">PermissionError</span><span class="p">(</span><span class="s2">"database DDL is disabled; construct the filesystem with allow_ddl=True"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">PermissionError</span><span class="p">(</span><span class="s2">"database DDL is disabled; construct the filesystem with allow_ddl=True"</span><span class="p">)</span></div>
+
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_ddl_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
@@ -585,6 +593,8 @@
 
 
 
+<div class="viewcode-block" id="DeferredDatabaseFile">
+<a class="viewcode-back" href="../../docs/src/api.html#fsspec_db.DeferredDatabaseFile">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">DeferredDatabaseFile</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Write buffer committed or discarded by ``fsspec.Transaction``."""</span>
 
@@ -593,9 +603,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_commit_callback</span> <span class="o">=</span> <span class="n">commit</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="kc">False</span>
 
+<div class="viewcode-block" id="DeferredDatabaseFile.close">
+<a class="viewcode-back" href="../../docs/src/api.html#fsspec_db.DeferredDatabaseFile.close">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span><span class="p">:</span>
-            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
 
     <span class="k">def</span><span class="w"> </span><span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span><span class="p">:</span>
@@ -606,7 +619,8 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_copy_local_to_rust_file</span><span class="p">(</span><span class="n">rust_fs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">lpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">rpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">callback</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>

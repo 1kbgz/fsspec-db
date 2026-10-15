@@ -26,7 +26,7 @@ with sqlite3.connect("library.db") as connection:
     )
 ```
 
-Run it once:
+Run it once in a new working directory:
 
 ```console
 python create_library.py
@@ -113,8 +113,5 @@ The path extension selected Parquet and the query parameter limited the read:
 2
 ```
 
-## What you built
-
-You browsed database metadata with filesystem operations and read rows through both SQL
-and a format-selecting path. See [Paths](paths.md) for the complete namespace and
+See [Paths and metadata](paths.md) for the complete namespace and
 [SQLite](sqlite.md) for writing data.

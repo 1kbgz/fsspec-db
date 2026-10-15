@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="SQLite" href="sqlite.html"><link rel="prev" title="Concepts" href="concepts.html">
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="Backend configuration and types" href="backends.html"><link rel="prev" title="How to manage tables and metadata caches" href="how-to-manage.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>Paths - fsspec-db v0.3.2</title>
+        <title>Paths and metadata - fsspec-db v0.3.2</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
@@ -199,13 +199,15 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="tutorial.html">Browse a SQLite database as a filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Paths</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sqlite.html">SQLite</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sql-backends.html">PostgreSQL and MySQL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sqlite.html">How to read and write SQLite data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sql-backends.html">How to connect PostgreSQL or MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="adapter-backends.html">How to connect Python database adapters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="python-backends.html">Python Backends</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="how-to-manage.html">How to manage tables and metadata caches</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Paths and metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends.html">Backend configuration and types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="python-backends.html">Python backend contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Python API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Why database objects have filesystem paths</a></li>
 </ul>
 
 </div>
@@ -244,8 +246,8 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="paths">
-<h1>Paths<a class="headerlink" href="#paths" title="Link to this heading">¶</a></h1>
+          <section class="tex2jax_ignore mathjax_ignore" id="paths-and-metadata">
+<h1>Paths and metadata<a class="headerlink" href="#paths-and-metadata" title="Link to this heading">¶</a></h1>
 <p>fsspec-db paths are absolute, protocol-free paths once a filesystem is constructed.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">fsspec</span>
 
@@ -317,7 +319,10 @@
 </tbody>
 </table>
 </div>
-<p>SQLite normally exposes the default database as <code class="docutils literal notranslate"><span class="pre">/main</span></code>.</p>
+<p>SQLite normally exposes the default database as <code class="docutils literal notranslate"><span class="pre">/main</span></code>. Native backends render
+relation <code class="docutils literal notranslate"><span class="pre">.sql</span></code> data paths. The direct <code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem</span></code> adapter raises
+<code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code> for relation DDL rendering; view <code class="docutils literal notranslate"><span class="pre">definition.sql</span></code> remains
+available when its backend implements <code class="docutils literal notranslate"><span class="pre">view_definition</span></code>.</p>
 </section>
 <section id="listing">
 <h2>Listing<a class="headerlink" href="#listing" title="Link to this heading">¶</a></h2>
@@ -331,7 +336,7 @@
 <span class="c1"># ["/main/users/columns", "/main/users/indexes", "/main/users/constraints"]</span>
 </pre></div>
 </div>
-<p>Use <code class="docutils literal notranslate"><span class="pre">detail=True</span></code> to get fsspec info dictionaries:</p>
+<p><code class="docutils literal notranslate"><span class="pre">detail=True</span></code> returns fsspec info dictionaries:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main/users/columns"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -348,7 +353,7 @@ type, nullability, ordinal position, and primary-key status.</p>
 </section>
 <section id="read-shaping">
 <h2>Read Shaping<a class="headerlink" href="#read-shaping" title="Link to this heading">¶</a></h2>
-<p>Three query parameters are available on materialized relation paths:</p>
+<p>Four query parameters are available on materialized relation paths:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -366,7 +371,11 @@ type, nullability, ordinal position, and primary-key status.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">/main/users.parquet?limit=100</span></code></p></td>
 <td><p>Adds <code class="docutils literal notranslate"><span class="pre">LIMIT</span></code>.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">where</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">offset</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/main/users.arrow?limit=20&amp;offset=20</span></code></p></td>
+<td><p>Skips rows before applying the limit.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">where</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">/main/users.arrow?where=score</span> <span class="pre">&gt;</span> <span class="pre">10</span></code></p></td>
 <td><p>Adds a <code class="docutils literal notranslate"><span class="pre">WHERE</span></code> predicate (see below).</p></td>
 </tr>
@@ -388,18 +397,123 @@ rather than interpolated:</p>
 <span class="n">fs</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">"/main/users.arrow?where=1); DROP TABLE x;--"</span><span class="p">)</span>  <span class="c1"># rejected</span>
 </pre></div>
 </div>
-<p>For arbitrary SQL beyond a single predicate, use <code class="docutils literal notranslate"><span class="pre">fs.query()</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">fs.query()</span></code> accepts arbitrary SQL beyond a single predicate.</p>
 </section>
 </section>
 <section id="write-paths">
 <h2>Write Paths<a class="headerlink" href="#write-paths" title="Link to this heading">¶</a></h2>
-<p>Write to the same data paths used for reads:</p>
+<p>Data writes use the same materialized relation paths as reads:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">fs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"/main/users.arrow"</span><span class="p">,</span> <span class="s2">"ab"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">arrow_ipc_bytes</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The incoming file extension controls decoding. <code class="docutils literal notranslate"><span class="pre">.arrow</span></code> and <code class="docutils literal notranslate"><span class="pre">.parquet</span></code> carry their own
 schema. <code class="docutils literal notranslate"><span class="pre">.csv</span></code> and <code class="docutils literal notranslate"><span class="pre">.jsonl</span></code> are decoded using the database table schema.</p>
+</section>
+<section id="metadata-dictionaries">
+<h2>Metadata dictionaries<a class="headerlink" href="#metadata-dictionaries" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">info()</span></code> and <code class="docutils literal notranslate"><span class="pre">ls(detail=True)</span></code> return ordinary fsspec dictionaries with these common keys:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">name</span></code></p></td>
+<td><p>Absolute fsspec-db path, without protocol.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">type</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&quot;directory&quot;</span></code> for schemas, relations, and facets; <code class="docutils literal notranslate"><span class="pre">&quot;file&quot;</span></code> for metadata items and materialized data.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">size</span></code></p></td>
+<td><p>Byte size when known. Materialized table reads usually learn size only after encoding.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kind</span></code></p></td>
+<td><p>fsspec-db object kind, such as <code class="docutils literal notranslate"><span class="pre">schema</span></code>, <code class="docutils literal notranslate"><span class="pre">table</span></code>, <code class="docutils literal notranslate"><span class="pre">view</span></code>, <code class="docutils literal notranslate"><span class="pre">column</span></code>, <code class="docutils literal notranslate"><span class="pre">index</span></code>, or <code class="docutils literal notranslate"><span class="pre">constraint</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Extra metadata is stored directly in the same dictionary:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Path</p></th>
+<th class="head"><p>Extra fields</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Relation directory</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">kind</span></code>, optional <code class="docutils literal notranslate"><span class="pre">row_count</span></code>, optional <code class="docutils literal notranslate"><span class="pre">size_bytes</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Column item</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">data_type</span></code>, <code class="docutils literal notranslate"><span class="pre">nullable</span></code>, <code class="docutils literal notranslate"><span class="pre">ordinal</span></code>, <code class="docutils literal notranslate"><span class="pre">primary_key</span></code>, optional <code class="docutils literal notranslate"><span class="pre">default</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Index item</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">columns</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>, optional <code class="docutils literal notranslate"><span class="pre">method</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Constraint item</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">kind</span></code>, <code class="docutils literal notranslate"><span class="pre">columns</span></code>, optional <code class="docutils literal notranslate"><span class="pre">references</span></code>, optional <code class="docutils literal notranslate"><span class="pre">expr</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Data file</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">format</span></code>, <code class="docutils literal notranslate"><span class="pre">dialect</span></code>, <code class="docutils literal notranslate"><span class="pre">size_known</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="column-values">
+<h2>Column values<a class="headerlink" href="#column-values" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">/{schema}/{relation}/columns/{column}</span></code> is both a metadata item for <code class="docutils literal notranslate"><span class="pre">info()</span></code> and a
+JSON array of distinct, sorted values for reads. <code class="docutils literal notranslate"><span class="pre">limit</span></code> and <code class="docutils literal notranslate"><span class="pre">offset</span></code> bound
+column-value reads; the default limit is 100.</p>
+</section>
+<section id="write-modes">
+<h2>Write modes<a class="headerlink" href="#write-modes" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Operation</p></th>
+<th class="head"><p>Behavior</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">open(path,</span> <span class="pre">&quot;wb&quot;)</span></code></p></td>
+<td><p>Replaces relation rows when the write commits.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">open(path,</span> <span class="pre">&quot;ab&quot;)</span></code></p></td>
+<td><p>Appends rows when the write commits.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pipe_file(path,</span> <span class="pre">bytes)</span></code> / <code class="docutils literal notranslate"><span class="pre">put_file(local,</span> <span class="pre">path)</span></code></p></td>
+<td><p>Overwrites by default.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pipe_file(...,</span> <span class="pre">mode=&quot;append&quot;)</span></code> / <code class="docutils literal notranslate"><span class="pre">put_file(...,</span> <span class="pre">mode=&quot;append&quot;)</span></code></p></td>
+<td><p>Appends.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pipe_file(...,</span> <span class="pre">mode=&quot;create&quot;)</span></code> / <code class="docutils literal notranslate"><span class="pre">put_file(...,</span> <span class="pre">mode=&quot;create&quot;)</span></code></p></td>
+<td><p>Raises <code class="docutils literal notranslate"><span class="pre">FileExistsError</span></code> for an existing target; does not create a table.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Supported open modes are <code class="docutils literal notranslate"><span class="pre">r</span></code>, <code class="docutils literal notranslate"><span class="pre">rb</span></code>, <code class="docutils literal notranslate"><span class="pre">w</span></code>, <code class="docutils literal notranslate"><span class="pre">wb</span></code>, <code class="docutils literal notranslate"><span class="pre">a</span></code>, and <code class="docutils literal notranslate"><span class="pre">ab</span></code>. Exclusive-create and
+update modes raise <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code>. Writes decode the completed encoded
+stream at commit time. Unclosed native write handles are discarded.</p>
+</section>
+<section id="ddl-and-cache-controls">
+<h2>DDL and cache controls<a class="headerlink" href="#ddl-and-cache-controls" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">allow_ddl=False</span></code> is the default. Guarded <code class="docutils literal notranslate"><span class="pre">mkdir</span></code>, <code class="docutils literal notranslate"><span class="pre">rm_file</span></code>, and <code class="docutils literal notranslate"><span class="pre">mv</span></code> raise
+<code class="docutils literal notranslate"><span class="pre">PermissionError</span></code> unless enabled. Raw <code class="docutils literal notranslate"><span class="pre">query()</span></code> is not restricted by that flag.</p>
+<p>With DDL enabled, <code class="docutils literal notranslate"><span class="pre">mkdir(&quot;/schema/relation&quot;,</span> <span class="pre">schema=arrow_schema)</span></code> creates a table;
+<code class="docutils literal notranslate"><span class="pre">sql=</span></code> accepts explicit creation SQL. <code class="docutils literal notranslate"><span class="pre">rm_file(&quot;/schema/relation&quot;)</span></code> drops the
+relation, while a relation path with an extension deletes its rows. <code class="docutils literal notranslate"><span class="pre">mv</span></code> renames
+relations within one schema; cross-schema moves raise <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ls(...,</span> <span class="pre">refresh=True)</span></code> and <code class="docutils literal notranslate"><span class="pre">info(...,</span> <span class="pre">refresh=True)</span></code> bypass cached introspection.
+<code class="docutils literal notranslate"><span class="pre">invalidate_cache(path=None)</span></code> clears all Python and available Rust introspection
+cache entries, even when a path is supplied. Listing cache options include
+<code class="docutils literal notranslate"><span class="pre">use_listings_cache</span></code>, <code class="docutils literal notranslate"><span class="pre">listings_expiry_time</span></code>, and <code class="docutils literal notranslate"><span class="pre">max_paths</span></code>.</p>
 </section>
 </section>
 
@@ -408,23 +522,23 @@ schema. <code class="docutils literal notranslate"><span class="pre">.csv</span>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="sqlite.html">
+          <a class="next-page" href="backends.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">SQLite</div>
+                <div class="title">Backend configuration and types</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="concepts.html">
+          <a class="prev-page" href="how-to-manage.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Concepts</div>
+                <div class="title">How to manage tables and metadata caches</div>
                 
               </div>
             </a>
@@ -458,7 +572,7 @@ schema. <code class="docutils literal notranslate"><span class="pre">.csv</span>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Paths</a><ul>
+<li><a class="reference internal" href="#">Paths and metadata</a><ul>
 <li><a class="reference internal" href="#grammar">Grammar</a></li>
 <li><a class="reference internal" href="#listing">Listing</a></li>
 <li><a class="reference internal" href="#metadata">Metadata</a></li>
@@ -467,6 +581,10 @@ schema. <code class="docutils literal notranslate"><span class="pre">.csv</span>
 </ul>
 </li>
 <li><a class="reference internal" href="#write-paths">Write Paths</a></li>
+<li><a class="reference internal" href="#metadata-dictionaries">Metadata dictionaries</a></li>
+<li><a class="reference internal" href="#column-values">Column values</a></li>
+<li><a class="reference internal" href="#write-modes">Write modes</a></li>
+<li><a class="reference internal" href="#ddl-and-cache-controls">DDL and cache controls</a></li>
 </ul>
 </li>
 </ul>

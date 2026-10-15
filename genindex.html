@@ -197,13 +197,15 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/tutorial.html">Browse a SQLite database as a filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="docs/src/concepts.html">Concepts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="docs/src/paths.html">Paths</a></li>
-<li class="toctree-l1"><a class="reference internal" href="docs/src/sqlite.html">SQLite</a></li>
-<li class="toctree-l1"><a class="reference internal" href="docs/src/sql-backends.html">PostgreSQL and MySQL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/sqlite.html">How to read and write SQLite data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/sql-backends.html">How to connect PostgreSQL or MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="docs/src/adapter-backends.html">How to connect Python database adapters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="docs/src/python-backends.html">Python Backends</a></li>
-<li class="toctree-l1"><a class="reference internal" href="docs/src/api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/how-to-manage.html">How to manage tables and metadata caches</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/paths.html">Paths and metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/backends.html">Backend configuration and types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/python-backends.html">Python backend contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/api.html">Python API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="docs/src/concepts.html">Why database objects have filesystem paths</a></li>
 </ul>
 
 </div>
@@ -290,6 +292,10 @@
 </li>
         </ul></li>
     </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.spec.DeferredDatabaseFile.close">close() (fsspec_db.spec.DeferredDatabaseFile method)</a>
+</li>
+    </ul></td>
   </tr></table>
 </section>
 
@@ -297,6 +303,10 @@
   <h2>D</h2>
   <table style="width: 100%" class="indextable genindextable"><tr>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="docs/src/api.html#fsspec_db.spec.DatabaseDdlMixin">DatabaseDdlMixin (class in fsspec_db.spec)</a>
+</li>
+        <li><a href="docs/src/api.html#fsspec_db.spec.DeferredDatabaseFile">DeferredDatabaseFile (class in fsspec_db.spec)</a>
+</li>
         <li><a href="docs/src/api.html#fsspec_db.AbstractDatabase.dialect">dialect() (fsspec_db.AbstractDatabase method)</a>
 
         <ul>
@@ -452,6 +462,8 @@
           <li><a href="docs/src/api.html#fsspec_db.SQLAlchemyDatabase.insert">(fsspec_db.SQLAlchemyDatabase method)</a>
 </li>
         </ul></li>
+        <li><a href="docs/src/api.html#fsspec_db.spec.IntrospectionCacheMixin">IntrospectionCacheMixin (class in fsspec_db.spec)</a>
+</li>
     </ul></td>
   </tr></table>
 </section>

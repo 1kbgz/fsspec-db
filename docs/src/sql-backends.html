@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="How to connect Python database adapters" href="adapter-backends.html"><link rel="prev" title="SQLite" href="sqlite.html">
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="How to connect Python database adapters" href="adapter-backends.html"><link rel="prev" title="How to read and write SQLite data" href="sqlite.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>PostgreSQL and MySQL - fsspec-db v0.3.2</title>
+        <title>How to connect PostgreSQL or MySQL - fsspec-db v0.3.2</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
@@ -199,13 +199,15 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="tutorial.html">Browse a SQLite database as a filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="paths.html">Paths</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sqlite.html">SQLite</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">PostgreSQL and MySQL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sqlite.html">How to read and write SQLite data</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">How to connect PostgreSQL or MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="adapter-backends.html">How to connect Python database adapters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="python-backends.html">Python Backends</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="how-to-manage.html">How to manage tables and metadata caches</a></li>
+<li class="toctree-l1"><a class="reference internal" href="paths.html">Paths and metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends.html">Backend configuration and types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="python-backends.html">Python backend contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Python API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Why database objects have filesystem paths</a></li>
 </ul>
 
 </div>
@@ -244,8 +246,8 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="postgresql-and-mysql">
-<h1>PostgreSQL and MySQL<a class="headerlink" href="#postgresql-and-mysql" title="Link to this heading">¶</a></h1>
+          <section class="tex2jax_ignore mathjax_ignore" id="how-to-connect-postgresql-or-mysql">
+<h1>How to connect PostgreSQL or MySQL<a class="headerlink" href="#how-to-connect-postgresql-or-mysql" title="Link to this heading">¶</a></h1>
 <p>PostgreSQL and MySQL are native Rust backends implemented with sqlx. They use the same
 filesystem path model as SQLite and are exposed as <code class="docutils literal notranslate"><span class="pre">db+postgresql</span></code>, <code class="docutils literal notranslate"><span class="pre">db+postgres</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">db+mysql</span></code>.</p>
@@ -309,131 +311,22 @@ arguments still win. If <code class="docutils literal notranslate"><span class="
 as <code class="docutils literal notranslate"><span class="pre">database</span></code> or <code class="docutils literal notranslate"><span class="pre">user</span></code>, the explicit source is used and those connection fields are
 consumed instead of being passed through as generic fsspec storage options.</p>
 </section>
-<section id="metadata">
-<h2>Metadata<a class="headerlink" href="#metadata" title="Link to this heading">¶</a></h2>
-<p>PostgreSQL introspection uses <code class="docutils literal notranslate"><span class="pre">information_schema</span></code> plus <code class="docutils literal notranslate"><span class="pre">pg_catalog</span></code> for indexes,
-constraints, estimated row counts, and view definitions. MySQL uses <code class="docutils literal notranslate"><span class="pre">information_schema</span></code>
-for schemata, tables, columns, constraints, views, and <code class="docutils literal notranslate"><span class="pre">statistics</span></code> index metadata.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/public"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/public/users"</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/public/users/columns/id"</span><span class="p">)</span>
-<span class="n">fs</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"/public/users/indexes/users_pkey"</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>MySQL database names appear as top-level schemas. PostgreSQL excludes <code class="docutils literal notranslate"><span class="pre">pg_catalog</span></code>,
-<code class="docutils literal notranslate"><span class="pre">information_schema</span></code>, and toast schemas from root listings. MySQL excludes
-<code class="docutils literal notranslate"><span class="pre">information_schema</span></code>, <code class="docutils literal notranslate"><span class="pre">mysql</span></code>, <code class="docutils literal notranslate"><span class="pre">performance_schema</span></code>, and <code class="docutils literal notranslate"><span class="pre">sys</span></code>.</p>
-</section>
-<section id="reads-and-queries">
-<h2>Reads and Queries<a class="headerlink" href="#reads-and-queries" title="Link to this heading">¶</a></h2>
-<p>Path reads generate dialect-aware <code class="docutils literal notranslate"><span class="pre">SELECT</span></code> statements:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">pg</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">"/public/users.parquet"</span><span class="p">)</span>
-<span class="n">table</span> <span class="o">=</span> <span class="n">mysql</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">"SELECT id, name FROM users WHERE id &gt; ?"</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-</pre></div>
-</div>
-<p>Raw <code class="docutils literal notranslate"><span class="pre">query()</span></code> SQL uses the target database driver’s placeholder syntax:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Backend</p></th>
-<th class="head"><p>Placeholder example</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>PostgreSQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">WHERE</span> <span class="pre">id</span> <span class="pre">&gt;</span> <span class="pre">$1</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>MySQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">WHERE</span> <span class="pre">id</span> <span class="pre">&gt;</span> <span class="pre">?</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>SQLite</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">WHERE</span> <span class="pre">id</span> <span class="pre">&gt;</span> <span class="pre">?</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="writes">
-<h2>Writes<a class="headerlink" href="#writes" title="Link to this heading">¶</a></h2>
-<p>Writes decode Arrow IPC, Parquet, CSV, or JSONL bytes and insert Arrow batches into the
-target relation.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">pg</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"/public/users.arrow"</span><span class="p">,</span> <span class="s2">"ab"</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
-    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">arrow_ipc_bytes</span><span class="p">)</span>
+<section id="read-and-write-an-existing-relation">
+<h2>Read and write an existing relation<a class="headerlink" href="#read-and-write-an-existing-relation" title="Link to this heading">¶</a></h2>
+<p>Use PostgreSQL’s schema name or MySQL’s database name in relation paths:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.parquet</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pq</span>
 
+<span class="n">orders</span> <span class="o">=</span> <span class="n">pg</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">"SELECT id, name FROM users WHERE id &gt; $1"</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">pg</span><span class="o">.</span><span class="n">cat_file</span><span class="p">(</span><span class="s2">"/public/users.parquet?limit=100"</span><span class="p">)</span>
+<span class="n">pq</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"Ada"</span><span class="p">]}),</span> <span class="s2">"rows.parquet"</span><span class="p">)</span>
 <span class="n">mysql</span><span class="o">.</span><span class="n">put_file</span><span class="p">(</span><span class="s2">"rows.parquet"</span><span class="p">,</span> <span class="s2">"/app/users.parquet"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"append"</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Overwrite writes replace table contents before inserting incoming rows. PostgreSQL uses
-<code class="docutils literal notranslate"><span class="pre">TRUNCATE</span> <span class="pre">TABLE</span></code> for overwrite mode. MySQL uses <code class="docutils literal notranslate"><span class="pre">DELETE</span> <span class="pre">FROM</span></code> so the write remains in the
-same transaction as the insert.</p>
-</section>
-<section id="type-handling">
-<h2>Type Handling<a class="headerlink" href="#type-handling" title="Link to this heading">¶</a></h2>
-<p>The sqlx backends convert common database scalar types into Arrow:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Backend</p></th>
-<th class="head"><p>Database type family</p></th>
-<th class="head"><p>Arrow type</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p>PostgreSQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">BOOL</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">bool</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>PostgreSQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">INT2</span></code>, <code class="docutils literal notranslate"><span class="pre">INT4</span></code>, <code class="docutils literal notranslate"><span class="pre">INT8</span></code>, <code class="docutils literal notranslate"><span class="pre">OID</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">int64</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>PostgreSQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">FLOAT4</span></code>, <code class="docutils literal notranslate"><span class="pre">FLOAT8</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">float64</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>PostgreSQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">BYTEA</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">binary</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>PostgreSQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">TEXT</span></code>, <code class="docutils literal notranslate"><span class="pre">VARCHAR</span></code>, <code class="docutils literal notranslate"><span class="pre">CHAR</span></code>, <code class="docutils literal notranslate"><span class="pre">BPCHAR</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">utf8</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>MySQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">BOOLEAN</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">bool</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>MySQL</p></td>
-<td><p>signed and unsigned integer families</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">int64</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>MySQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">FLOAT</span></code>, <code class="docutils literal notranslate"><span class="pre">DOUBLE</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">float64</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>MySQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">BINARY</span></code>, <code class="docutils literal notranslate"><span class="pre">VARBINARY</span></code>, <code class="docutils literal notranslate"><span class="pre">*BLOB</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">binary</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>MySQL</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CHAR</span></code>, <code class="docutils literal notranslate"><span class="pre">VARCHAR</span></code>, <code class="docutils literal notranslate"><span class="pre">*TEXT</span></code>, JSON, enums</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">utf8</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Unsigned MySQL integers that do not fit in Arrow <code class="docutils literal notranslate"><span class="pre">int64</span></code> return an error. Decimal,
-temporal, geometry, and other specialized types should be cast in SQL until richer Arrow
-type mappings land.</p>
-</section>
-<section id="arrow-extraction-boundary">
-<h2>Arrow Extraction Boundary<a class="headerlink" href="#arrow-extraction-boundary" title="Link to this heading">¶</a></h2>
-<p>All native backends expose query results through <code class="docutils literal notranslate"><span class="pre">Database::query()</span> <span class="pre">-&gt;</span> <span class="pre">RecordBatchStream</span></code>.
-The current sqlx drivers build Arrow from rows. The Rust trait also records an
-<code class="docutils literal notranslate"><span class="pre">ArrowExtraction</span></code> strategy so future native-Arrow readers such as connector-x or
-<code class="docutils literal notranslate"><span class="pre">arrow-odbc</span></code> can be added as optional driver implementations without changing fsspec path
-semantics.</p>
+<p>The target table must exist and accept the incoming columns. Use overwrite only
+to replace its rows. Cast unsupported specialized types in SQL before reading.
+Consult <a class="reference internal" href="backends.html"><span class="std std-doc">Backend configuration and types</span></a> for placeholders,
+metadata exclusions, and native Arrow mappings.</p>
 </section>
 </section>
 
@@ -458,7 +351,7 @@ semantics.</p>
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">SQLite</div>
+                <div class="title">How to read and write SQLite data</div>
                 
               </div>
             </a>
@@ -492,13 +385,9 @@ semantics.</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">PostgreSQL and MySQL</a><ul>
+<li><a class="reference internal" href="#">How to connect PostgreSQL or MySQL</a><ul>
 <li><a class="reference internal" href="#construction">Construction</a></li>
-<li><a class="reference internal" href="#metadata">Metadata</a></li>
-<li><a class="reference internal" href="#reads-and-queries">Reads and Queries</a></li>
-<li><a class="reference internal" href="#writes">Writes</a></li>
-<li><a class="reference internal" href="#type-handling">Type Handling</a></li>
-<li><a class="reference internal" href="#arrow-extraction-boundary">Arrow Extraction Boundary</a></li>
+<li><a class="reference internal" href="#read-and-write-an-existing-relation">Read and write an existing relation</a></li>
 </ul>
 </li>
 </ul>

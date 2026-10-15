@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="Concepts" href="concepts.html"><link rel="prev" title="fsspec-db" href="../../index.html">
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="How to read and write SQLite data" href="sqlite.html"><link rel="prev" title="fsspec-db" href="../../index.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Browse a SQLite database as a filesystem - fsspec-db v0.3.2</title>
@@ -199,13 +199,15 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Browse a SQLite database as a filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="paths.html">Paths</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sqlite.html">SQLite</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sql-backends.html">PostgreSQL and MySQL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sqlite.html">How to read and write SQLite data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sql-backends.html">How to connect PostgreSQL or MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="adapter-backends.html">How to connect Python database adapters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="python-backends.html">Python Backends</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="how-to-manage.html">How to manage tables and metadata caches</a></li>
+<li class="toctree-l1"><a class="reference internal" href="paths.html">Paths and metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends.html">Backend configuration and types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="python-backends.html">Python backend contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Python API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Why database objects have filesystem paths</a></li>
 </ul>
 
 </div>
@@ -268,7 +270,7 @@ and reads a table as Arrow data.</p>
     <span class="p">)</span>
 </pre></div>
 </div>
-<p>Run it once:</p>
+<p>Run it once in a new working directory:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">python create_library.py</span>
 </pre></div>
 </div>
@@ -337,11 +339,7 @@ TEXT False
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>2
 </pre></div>
 </div>
-</section>
-<section id="what-you-built">
-<h2>What you built<a class="headerlink" href="#what-you-built" title="Link to this heading">¶</a></h2>
-<p>You browsed database metadata with filesystem operations and read rows through both SQL
-and a format-selecting path. See <a class="reference internal" href="paths.html"><span class="std std-doc">Paths</span></a> for the complete namespace and
+<p>See <a class="reference internal" href="paths.html"><span class="std std-doc">Paths and metadata</span></a> for the complete namespace and
 <a class="reference internal" href="sqlite.html"><span class="std std-doc">SQLite</span></a> for writing data.</p>
 </section>
 </section>
@@ -351,12 +349,12 @@ and a format-selecting path. See <a class="reference internal" href="paths.html"
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="concepts.html">
+          <a class="next-page" href="sqlite.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Concepts</div>
+                <div class="title">How to read and write SQLite data</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -407,7 +405,6 @@ and a format-selecting path. See <a class="reference internal" href="paths.html"
 <li><a class="reference internal" href="#browse-its-structure">Browse its structure</a></li>
 <li><a class="reference internal" href="#inspect-metadata">Inspect metadata</a></li>
 <li><a class="reference internal" href="#read-table-data">Read table data</a></li>
-<li><a class="reference internal" href="#what-you-built">What you built</a></li>
 </ul>
 </li>
 </ul>

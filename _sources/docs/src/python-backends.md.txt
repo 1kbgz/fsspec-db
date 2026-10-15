@@ -1,4 +1,4 @@
-# Python Backends
+# Python backend contract
 
 Python-defined database backends implement `fsspec_db.AbstractDatabase`. An
 `AbstractDatabaseFileSystem` wraps the object and delegates filesystem behavior through the
@@ -73,60 +73,18 @@ The bridge maps common Python exceptions to fsspec/Rust error categories.
 | `ValueError`         | Invalid argument or unsupported value. |
 | Other exceptions     | Generic backend error.                 |
 
-## Minimal Backend
+## Filesystem wrappers
 
-```python
-import pyarrow as pa
+`AbstractDatabaseFileSystem(db, **storage_options)` and
+`PyDatabaseFileSystem(db, **storage_options)` adapt a concrete `AbstractDatabase`.
+`AbstractDatabaseFileSystem` routes paths through Rust `DatabaseFs`.
+`PyDatabaseFileSystem` implements the path mapping directly in Python and does
+not call the Rust bridge.
 
-from fsspec_db import (
-    AbstractDatabase,
-    AbstractDatabaseFileSystem,
-    ColumnInfo,
-    ConstraintInfo,
-    IndexInfo,
-    RelationInfo,
-    SchemaInfo,
-)
+The backend must execute SQL generated for path projection, predicates, limits,
+and offsets, as well as SQL supplied directly to `query`. Returning an unchanged
+in-memory table for every query does not satisfy that contract.
 
-
-class MemoryDatabase(AbstractDatabase):
-    def __init__(self):
-        self.table = pa.table({"id": [1], "name": ["ada"]})
-
-    def dialect(self):
-        return "sqlite"
-
-    def list_schemas(self):
-        return [SchemaInfo("main")]
-
-    def list_relations(self, schema):
-        return [RelationInfo("users", "table", row_count=self.table.num_rows)]
-
-    def list_columns(self, schema, relation):
-        return [
-            ColumnInfo("id", "INTEGER", False, None, 1, True),
-            ColumnInfo("name", "TEXT", True, None, 2),
-        ]
-
-    def list_indexes(self, schema, relation):
-        return []
-
-    def list_constraints(self, schema, relation):
-        return [ConstraintInfo("pk_users", "pk", ["id"])]
-
-    def relation_info(self, schema, relation):
-        return self.list_relations(schema)[0]
-
-    def view_definition(self, schema, view):
-        raise FileNotFoundError(view)
-
-    def query(self, sql, params=None):
-        return self.table
-
-    def insert(self, schema, relation, table, mode="append"):
-        self.table = table if mode == "truncate" else pa.concat_tables([self.table, table])
-        return table.num_rows
-
-
-fs = AbstractDatabaseFileSystem(MemoryDatabase())
-```
+Metadata must describe actual relation state. Insert behavior, rollback, and
+connection lifetime remain backend responsibilities. Existing implementations in
+`fsspec_db.duckdb`, `fsspec_db.sqlalchemy`, and `fsspec_db.odbc` are concrete adapters.

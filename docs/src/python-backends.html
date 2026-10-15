@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="API" href="api.html"><link rel="prev" title="How to connect Python database adapters" href="adapter-backends.html">
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="Python API reference" href="api.html"><link rel="prev" title="Backend configuration and types" href="backends.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>Python Backends - fsspec-db v0.3.2</title>
+        <title>Python backend contract - fsspec-db v0.3.2</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
@@ -199,13 +199,15 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="tutorial.html">Browse a SQLite database as a filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts</a></li>
-<li class="toctree-l1"><a class="reference internal" href="paths.html">Paths</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sqlite.html">SQLite</a></li>
-<li class="toctree-l1"><a class="reference internal" href="sql-backends.html">PostgreSQL and MySQL</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sqlite.html">How to read and write SQLite data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sql-backends.html">How to connect PostgreSQL or MySQL</a></li>
 <li class="toctree-l1"><a class="reference internal" href="adapter-backends.html">How to connect Python database adapters</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Python Backends</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="how-to-manage.html">How to manage tables and metadata caches</a></li>
+<li class="toctree-l1"><a class="reference internal" href="paths.html">Paths and metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="backends.html">Backend configuration and types</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Python backend contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Python API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Why database objects have filesystem paths</a></li>
 </ul>
 
 </div>
@@ -244,8 +246,8 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section class="tex2jax_ignore mathjax_ignore" id="python-backends">
-<h1>Python Backends<a class="headerlink" href="#python-backends" title="Link to this heading">¶</a></h1>
+          <section class="tex2jax_ignore mathjax_ignore" id="python-backend-contract">
+<h1>Python backend contract<a class="headerlink" href="#python-backend-contract" title="Link to this heading">¶</a></h1>
 <p>Python-defined database backends implement <code class="docutils literal notranslate"><span class="pre">fsspec_db.AbstractDatabase</span></code>. An
 <code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem</span></code> wraps the object and delegates filesystem behavior through the
 Rust <code class="docutils literal notranslate"><span class="pre">DatabaseFs</span></code> bridge.</p>
@@ -406,63 +408,19 @@ relation data file. <code class="docutils literal notranslate"><span class="pre"
 </table>
 </div>
 </section>
-<section id="minimal-backend">
-<h2>Minimal Backend<a class="headerlink" href="#minimal-backend" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">fsspec_db</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">AbstractDatabase</span><span class="p">,</span>
-    <span class="n">AbstractDatabaseFileSystem</span><span class="p">,</span>
-    <span class="n">ColumnInfo</span><span class="p">,</span>
-    <span class="n">ConstraintInfo</span><span class="p">,</span>
-    <span class="n">IndexInfo</span><span class="p">,</span>
-    <span class="n">RelationInfo</span><span class="p">,</span>
-    <span class="n">SchemaInfo</span><span class="p">,</span>
-<span class="p">)</span>
-
-
-<span class="k">class</span><span class="w"> </span><span class="nc">MemoryDatabase</span><span class="p">(</span><span class="n">AbstractDatabase</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="s2">"id"</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s2">"name"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"ada"</span><span class="p">]})</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">dialect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s2">"sqlite"</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_schemas</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">SchemaInfo</span><span class="p">(</span><span class="s2">"main"</span><span class="p">)]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_relations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">RelationInfo</span><span class="p">(</span><span class="s2">"users"</span><span class="p">,</span> <span class="s2">"table"</span><span class="p">,</span> <span class="n">row_count</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">table</span><span class="o">.</span><span class="n">num_rows</span><span class="p">)]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_columns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">relation</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span>
-            <span class="n">ColumnInfo</span><span class="p">(</span><span class="s2">"id"</span><span class="p">,</span> <span class="s2">"INTEGER"</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
-            <span class="n">ColumnInfo</span><span class="p">(</span><span class="s2">"name"</span><span class="p">,</span> <span class="s2">"TEXT"</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
-        <span class="p">]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_indexes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">relation</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">list_constraints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">relation</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">ConstraintInfo</span><span class="p">(</span><span class="s2">"pk_users"</span><span class="p">,</span> <span class="s2">"pk"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"id"</span><span class="p">])]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">relation_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">relation</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_relations</span><span class="p">(</span><span class="n">schema</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">view_definition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">view</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">view</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">table</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">insert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">relation</span><span class="p">,</span> <span class="n">table</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"append"</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="n">table</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">"truncate"</span> <span class="k">else</span> <span class="n">pa</span><span class="o">.</span><span class="n">concat_tables</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">table</span><span class="p">,</span> <span class="n">table</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">table</span><span class="o">.</span><span class="n">num_rows</span>
-
-
-<span class="n">fs</span> <span class="o">=</span> <span class="n">AbstractDatabaseFileSystem</span><span class="p">(</span><span class="n">MemoryDatabase</span><span class="p">())</span>
-</pre></div>
-</div>
+<section id="filesystem-wrappers">
+<h2>Filesystem wrappers<a class="headerlink" href="#filesystem-wrappers" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem(db,</span> <span class="pre">**storage_options)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem(db,</span> <span class="pre">**storage_options)</span></code> adapt a concrete <code class="docutils literal notranslate"><span class="pre">AbstractDatabase</span></code>.
+<code class="docutils literal notranslate"><span class="pre">AbstractDatabaseFileSystem</span></code> routes paths through Rust <code class="docutils literal notranslate"><span class="pre">DatabaseFs</span></code>.
+<code class="docutils literal notranslate"><span class="pre">PyDatabaseFileSystem</span></code> implements the path mapping directly in Python and does
+not call the Rust bridge.</p>
+<p>The backend must execute SQL generated for path projection, predicates, limits,
+and offsets, as well as SQL supplied directly to <code class="docutils literal notranslate"><span class="pre">query</span></code>. Returning an unchanged
+in-memory table for every query does not satisfy that contract.</p>
+<p>Metadata must describe actual relation state. Insert behavior, rollback, and
+connection lifetime remain backend responsibilities. Existing implementations in
+<code class="docutils literal notranslate"><span class="pre">fsspec_db.duckdb</span></code>, <code class="docutils literal notranslate"><span class="pre">fsspec_db.sqlalchemy</span></code>, and <code class="docutils literal notranslate"><span class="pre">fsspec_db.odbc</span></code> are concrete adapters.</p>
 </section>
 </section>
 
@@ -476,18 +434,18 @@ relation data file. <code class="docutils literal notranslate"><span class="pre"
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">API</div>
+                <div class="title">Python API reference</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="adapter-backends.html">
+          <a class="prev-page" href="backends.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">How to connect Python database adapters</div>
+                <div class="title">Backend configuration and types</div>
                 
               </div>
             </a>
@@ -521,13 +479,13 @@ relation data file. <code class="docutils literal notranslate"><span class="pre"
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Python Backends</a><ul>
+<li><a class="reference internal" href="#">Python backend contract</a><ul>
 <li><a class="reference internal" href="#contract">Contract</a></li>
 <li><a class="reference internal" href="#metadata-objects">Metadata Objects</a></li>
 <li><a class="reference internal" href="#query-boundary">Query Boundary</a></li>
 <li><a class="reference internal" href="#insert-boundary">Insert Boundary</a></li>
 <li><a class="reference internal" href="#exceptions">Exceptions</a></li>
-<li><a class="reference internal" href="#minimal-backend">Minimal Backend</a></li>
+<li><a class="reference internal" href="#filesystem-wrappers">Filesystem wrappers</a></li>
 </ul>
 </li>
 </ul>
