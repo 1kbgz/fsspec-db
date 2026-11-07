@@ -14,12 +14,12 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [dependencies]
-arrow = "54.3.1"
+arrow = "60.1.0"
 csv-core = "0.1"
 futures-util = "0.3"
-fsspec_data = "0.3.0"
+fsspec_data = "0.4.0"
 fsspec_rs = "0.1.7"
-parquet = "54.3.1"
+parquet = "60.1.0"
 sqlparser = { version = "0.62.0", features = ["visitor"] }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "mysql", "chrono", "bigdecimal", "uuid", "json"] }
 tokio = { version = "1", features = ["rt"] }
