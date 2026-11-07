@@ -121,4 +121,12 @@ pub trait Database: Send + Sync {
         batches: RecordBatchStream,
         mode: InsertMode,
     ) -> Result<u64>;
+
+    /// Execute one statement and return the number of rows it affected.
+    fn execute(&self, sql: &str, params: &[DbValue]) -> Result<u64> {
+        let _ = (sql, params);
+        Err(DbError::NotSupported(
+            "statement execution is not supported by this database".to_string(),
+        ))
+    }
 }

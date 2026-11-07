@@ -257,7 +257,7 @@ impl Database for PostgresDatabase {
             let rows = sqlx::query(
                 "SELECT
                     con.conname AS constraint_name,
-                    con.contype AS constraint_type,
+                    con.contype::text AS constraint_type,
                     COALESCE(string_agg(att.attname, ',' ORDER BY ord.ordinality), '') AS columns,
                     CASE
                         WHEN con.confrelid <> 0 THEN ref_ns.nspname || '.' || ref_rel.relname
@@ -344,6 +344,16 @@ impl Database for PostgresDatabase {
             sql.to_string(),
             params.to_vec(),
         )
+    }
+
+    fn execute(&self, sql: &str, params: &[DbValue]) -> Result<u64> {
+        self.block_on(async {
+            let mut query = sqlx::query(AssertSqlSafe(sql.to_string()));
+            for param in params {
+                query = bind_value(query, param);
+            }
+            Ok(query.execute(&self.pool).await?.rows_affected())
+        })
     }
 
     fn insert(
@@ -1223,6 +1233,10 @@ mod tests {
         assert!(columns[0].primary_key);
         let indexes = db.list_indexes("public", "fsspec_db_users").unwrap();
         assert!(indexes.iter().any(|index| index.columns == vec!["name"]));
+        let constraints = db.list_constraints("public", "fsspec_db_users").unwrap();
+        assert!(constraints.iter().any(|constraint| {
+            constraint.kind == ConstraintKind::PrimaryKey && constraint.columns == vec!["id"]
+        }));
 
         let mut reader = db
             .query(

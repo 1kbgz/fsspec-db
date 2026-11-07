@@ -167,7 +167,7 @@ pub fn insert_sql(
     ))
 }
 
-fn qualified_name(dialect: &Dialect, schema: &str, relation: &str) -> Result<String> {
+pub(crate) fn qualified_name(dialect: &Dialect, schema: &str, relation: &str) -> Result<String> {
     Ok(format!(
         "{}.{}",
         quote_identifier(dialect, schema)?,
@@ -175,7 +175,7 @@ fn qualified_name(dialect: &Dialect, schema: &str, relation: &str) -> Result<Str
     ))
 }
 
-fn placeholder(dialect: &Dialect, index: usize) -> String {
+pub(crate) fn placeholder(dialect: &Dialect, index: usize) -> String {
     match dialect {
         Dialect::Postgres => format!("${index}"),
         _ => "?".to_string(),

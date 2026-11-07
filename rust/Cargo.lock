@@ -761,6 +761,7 @@ dependencies = [
  "fsspec_rs",
  "futures-util",
  "parquet",
+ "serde_json",
  "sqlparser",
  "sqlx",
  "tokio",

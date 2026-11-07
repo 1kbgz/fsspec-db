@@ -13,10 +13,12 @@ from .spec import (
     IntrospectionCacheMixin,
     _binary_mode,
     _copy_local_to_rust_file,
+    _split_server_url,
     _validate_open_mode,
 )
 
 _rust = import_module(".fsspec_db", __package__)
+_URL_PREFIXES = {"db+postgresql://": "postgresql://", "db+postgres://": "postgres://"}
 
 
 class PostgresDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
@@ -27,6 +29,8 @@ class PostgresDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fssp
 
     @classmethod
     def _strip_protocol(cls, path: Any) -> Any:
+        if isinstance(path, str) and path.startswith(tuple(_URL_PREFIXES)):
+            return _split_server_url(path, _URL_PREFIXES)[1]
         stripped = super()._strip_protocol(path)
         if isinstance(stripped, list):
             return [cls._strip_protocol(item) for item in stripped]
@@ -116,14 +120,7 @@ class PostgresDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fssp
 
 
 def _dsn_from_url(path: str) -> str:
-    prefixes = {
-        "db+postgresql://": "postgresql://",
-        "db+postgres://": "postgres://",
-    }
-    for source, target in prefixes.items():
-        if path.startswith(source):
-            return target + path.removeprefix(source)
-    return path
+    return _split_server_url(path, _URL_PREFIXES)[0]
 
 
 def _dsn_from_options(options: dict[str, Any]) -> str | None:

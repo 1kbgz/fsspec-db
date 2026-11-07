@@ -82,6 +82,10 @@ pub enum DbPathKind {
         format: DataFormat,
     },
     ViewDefinition,
+    /// A key prefix or record under `schema/table/records/`.
+    Records {
+        key: Vec<String>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -137,6 +141,14 @@ impl DbPath {
                     query,
                 })
             }
+            [schema, relation, "records", key @ ..] => Ok(Self {
+                schema: Some((*schema).to_string()),
+                relation: Some((*relation).to_string()),
+                kind: DbPathKind::Records {
+                    key: key.iter().map(|segment| segment.to_string()).collect(),
+                },
+                query,
+            }),
             [schema, relation, "definition.sql"] => Ok(Self {
                 schema: Some((*schema).to_string()),
                 relation: Some((*relation).to_string()),
@@ -194,6 +206,9 @@ impl DbPath {
             (Some(schema), Some(relation), DbPathKind::ViewDefinition) => {
                 format!("/{schema}/{relation}/definition.sql")
             }
+            (Some(schema), Some(relation), DbPathKind::Records { key }) => {
+                Self::records_path(schema, relation, key)
+            }
             _ => "/".to_string(),
         };
 
@@ -232,6 +247,15 @@ impl DbPath {
 
     pub fn view_definition_path(schema: &str, relation: &str) -> String {
         format!("/{schema}/{relation}/definition.sql")
+    }
+
+    pub fn records_path(schema: &str, relation: &str, key: &[String]) -> String {
+        let mut path = format!("/{schema}/{relation}/records");
+        for segment in key {
+            path.push('/');
+            path.push_str(segment);
+        }
+        path
     }
 }
 
@@ -374,6 +398,21 @@ mod tests {
             }
         );
         assert_eq!(path.to_path(), "/main/users/columns/id");
+    }
+
+    #[test]
+    fn parses_records_key_roundtrip() {
+        let path = DbPath::parse("db://main/kv/records/ns/a%2Fb").unwrap();
+        assert_eq!(
+            path.kind,
+            DbPathKind::Records {
+                key: vec!["ns".to_string(), "a%2Fb".to_string()]
+            }
+        );
+        assert_eq!(path.to_path(), "/main/kv/records/ns/a%2Fb");
+
+        let root = DbPath::parse("/main/kv/records").unwrap();
+        assert_eq!(root.kind, DbPathKind::Records { key: Vec::new() });
     }
 
     #[test]

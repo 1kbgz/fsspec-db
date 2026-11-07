@@ -24,6 +24,8 @@ through metadata paths, SQL, and Parquet.
 [connect Python database adapters](docs/src/adapter-backends.md).
 [Manage tables and metadata caches](docs/src/how-to-manage.md) covers opt-in DDL,
 refreshing introspection, and deferred writes.
+[Store keyed records](docs/src/records.md) uses tables with a primary key as
+`fsspec.get_mapper` stores.
 
 ## Reference and explanation
 

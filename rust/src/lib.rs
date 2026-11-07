@@ -6,6 +6,7 @@ pub mod fs;
 pub mod mysql;
 pub mod path;
 pub mod postgres;
+mod records;
 pub mod sql;
 pub mod sqlite;
 pub mod stream;

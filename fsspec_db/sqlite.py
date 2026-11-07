@@ -16,6 +16,7 @@ from .spec import (
 )
 
 _rust = import_module(".fsspec_db", __package__)
+_SQLITE_SUFFIXES = (".db", ".sqlite", ".sqlite3")
 
 
 class SQLiteDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
@@ -29,6 +30,8 @@ class SQLiteDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec
 
     @classmethod
     def _strip_protocol(cls, path: Any) -> Any:
+        if isinstance(path, str) and path.startswith("db+sqlite://"):
+            return _split_url(path)[1]
         stripped = super()._strip_protocol(path)
         if isinstance(stripped, list):
             return [cls._strip_protocol(item) for item in stripped]
@@ -40,10 +43,8 @@ class SQLiteDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec
 
     @classmethod
     def _get_kwargs_from_urls(cls, path: str) -> dict[str, str]:
-        database = cls._strip_protocol(path)
-        if database == cls.root_marker:
-            return {}
-        return {"database": database}
+        database = _split_url(path)[0]
+        return {} if database is None else {"database": database}
 
     def __init__(self, database: str | None = None, **storage_options: Any) -> None:
         source = database or storage_options.pop("path", None) or storage_options.pop("url", None)
@@ -108,6 +109,21 @@ class SQLiteDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec
             if not autocommit:
                 return DeferredDatabaseFile(lambda data: self._write_file(path, data, _binary_mode(mode)))
         return self._rust.open_file(path, _binary_mode(mode))
+
+
+def _split_url(path: str) -> tuple[str | None, str]:
+    """Split ``db+sqlite://state.db/main/table`` after the first segment with a SQLite suffix.
+
+    A URL without such a segment names only the database.
+    """
+    rest = path.removeprefix("db+sqlite://")
+    if rest == "localhost" or rest.startswith("localhost/"):
+        return None, "/" + rest.removeprefix("localhost").strip("/")
+    parts = rest.split("/")
+    for index, part in enumerate(parts):
+        if part.lower().endswith(_SQLITE_SUFFIXES):
+            return "/".join(parts[: index + 1]), "/" + "/".join(parts[index + 1 :]).strip("/")
+    return rest or None, "/"
 
 
 fsspec.register_implementation("db+sqlite", SQLiteDatabaseFileSystem, clobber=True)
