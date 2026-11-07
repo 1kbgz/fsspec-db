@@ -741,9 +741,9 @@ dependencies = [
 
 [[package]]
 name = "fsspec_data"
-version = "0.2.3"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09b9a688ee2fa37c66239bb7acb02554929e2870d27d0dc7715dcf38f9c83edc"
+checksum = "698d1b4034b073100ca64da456837d5dc7b1f2d900cfdc797b93d95473916b12"
 dependencies = [
  "arrow",
  "bytes",
@@ -768,12 +768,13 @@ dependencies = [
 
 [[package]]
 name = "fsspec_rs"
-version = "0.1.5"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8dfb8bedc451a1be1623343d05828fb412b9c381edae11920267cfa787a547a0"
+checksum = "d6e03aa41c01ad1b4e2f203d8b757dc74d5d596a15dca6583a807f7e31b6c235"
 dependencies = [
  "bytes",
  "object_store",
+ "percent-encoding",
  "tokio",
  "url",
 ]
