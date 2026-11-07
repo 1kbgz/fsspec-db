@@ -507,6 +507,11 @@ window.runMermaid = runMermaid;</script>
     </a>
   </li>
   <li class="fd-tree-item">
+    <a class="fd-link" href="../../docs/src/records.html">
+      <span class="fd-link-text">How to store keyed records</span>
+    </a>
+  </li>
+  <li class="fd-tree-item">
     <a class="fd-link" href="../../docs/src/paths.html">
       <span class="fd-link-text">Paths and metadata</span>
     </a>
@@ -576,10 +581,12 @@ window.runMermaid = runMermaid;</script>
     <span class="n">IntrospectionCacheMixin</span><span class="p">,</span>
     <span class="n">_binary_mode</span><span class="p">,</span>
     <span class="n">_copy_local_to_rust_file</span><span class="p">,</span>
+    <span class="n">_split_server_url</span><span class="p">,</span>
     <span class="n">_validate_open_mode</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">_rust</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="s2">".fsspec_db"</span><span class="p">,</span> <span class="n">__package__</span><span class="p">)</span>
+<span class="n">_URL_PREFIXES</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"db+mysql://"</span><span class="p">:</span> <span class="s2">"mysql://"</span><span class="p">}</span>
 
 
 <div class="viewcode-block" id="MySQLDatabaseFileSystem">
@@ -592,6 +599,8 @@ window.runMermaid = runMermaid;</script>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_strip_protocol</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">_URL_PREFIXES</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="n">_split_server_url</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">_URL_PREFIXES</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">stripped</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_strip_protocol</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stripped</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">_strip_protocol</span><span class="p">(</span><span class="n">item</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">stripped</span><span class="p">]</span>
@@ -697,10 +706,7 @@ window.runMermaid = runMermaid;</script>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_dsn_from_url</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="n">prefix</span> <span class="o">=</span> <span class="s2">"db+mysql://"</span>
-    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">prefix</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s2">"mysql://"</span> <span class="o">+</span> <span class="n">path</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">path</span>
+    <span class="k">return</span> <span class="n">_split_server_url</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">_URL_PREFIXES</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_dsn_from_options</span><span class="p">(</span><span class="n">options</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>

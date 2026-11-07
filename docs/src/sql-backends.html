@@ -103,6 +103,11 @@
     </a>
   </li>
   <li class="fd-tree-item">
+    <a class="fd-link" href="records.html">
+      <span class="fd-link-text">How to store keyed records</span>
+    </a>
+  </li>
+  <li class="fd-tree-item">
     <a class="fd-link" href="paths.html">
       <span class="fd-link-text">Paths and metadata</span>
     </a>
@@ -186,6 +191,9 @@ filesystem path model as SQLite and are exposed as <code class="docutils literal
 <span class="n">mysql</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">url_to_fs</span><span class="p">(</span><span class="s2">"db+mysql://user:password@localhost:3306/app"</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Segments after the database name are a path inside it, such as
+<code class="docutils literal notranslate"><span class="pre">db+postgresql://user:password&#64;localhost:5432/app/public/users</span></code>. See
+<a class="reference internal" href="paths.html#urls"><span class="std std-ref">URLs</span></a>.</p>
 <p>Both backends also accept individual connection options:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pg</span> <span class="o">=</span> <span class="n">fsspec</span><span class="o">.</span><span class="n">filesystem</span><span class="p">(</span>
     <span class="s2">"db+postgresql"</span><span class="p">,</span>

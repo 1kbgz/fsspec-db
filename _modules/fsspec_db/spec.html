@@ -507,6 +507,11 @@ window.runMermaid = runMermaid;</script>
     </a>
   </li>
   <li class="fd-tree-item">
+    <a class="fd-link" href="../../docs/src/records.html">
+      <span class="fd-link-text">How to store keyed records</span>
+    </a>
+  </li>
+  <li class="fd-tree-item">
     <a class="fd-link" href="../../docs/src/paths.html">
       <span class="fd-link-text">Paths and metadata</span>
     </a>
@@ -592,6 +597,9 @@ window.runMermaid = runMermaid;</script>
 <span class="w">    </span><span class="sd">"""Cache database listings and metadata using fsspec's bounded TTL cache."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_cached_ls</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">detail</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">loader</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">_is_records_path</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="n">entries</span> <span class="o">=</span> <span class="n">loader</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">entries</span> <span class="k">if</span> <span class="n">detail</span> <span class="k">else</span> <span class="p">[</span><span class="n">entry</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">refresh</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">invalidate_cache</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="n">key</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_marker</span>
@@ -607,6 +615,8 @@ window.runMermaid = runMermaid;</script>
         <span class="k">return</span> <span class="n">entries</span> <span class="k">if</span> <span class="n">detail</span> <span class="k">else</span> <span class="p">[</span><span class="n">entry</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">]</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_cached_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">loader</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">_is_records_path</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">loader</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">refresh</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">invalidate_cache</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="n">key</span> <span class="o">=</span> <span class="n">_INFO_CACHE_PREFIX</span> <span class="o">+</span> <span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_marker</span><span class="p">)</span>
@@ -654,6 +664,12 @@ window.runMermaid = runMermaid;</script>
         <span class="bp">self</span><span class="o">.</span><span class="n">invalidate_cache</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">rm_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">_is_records_path</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="n">rust</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_rust"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">rust</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"records are not supported by this filesystem"</span><span class="p">)</span>
+            <span class="n">rust</span><span class="o">.</span><span class="n">rm_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">return</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_require_ddl</span><span class="p">()</span>
         <span class="n">schema</span><span class="p">,</span> <span class="n">relation</span><span class="p">,</span> <span class="n">extension</span> <span class="o">=</span> <span class="n">_ddl_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">relation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -687,6 +703,32 @@ window.runMermaid = runMermaid;</script>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"allow_ddl"</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">PermissionError</span><span class="p">(</span><span class="s2">"database DDL is disabled; construct the filesystem with allow_ddl=True"</span><span class="p">)</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_split_server_url</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">prefixes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Split ``db+{driver}://netloc/database/path`` into a DSN and a path in the database.</span>
+
+<span class="sd">    A query string belongs to the path when there is one, and otherwise to the DSN.</span>
+<span class="sd">    """</span>
+    <span class="k">for</span> <span class="n">source</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">prefixes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+            <span class="k">break</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">path</span><span class="p">,</span> <span class="n">path</span>
+    <span class="n">location</span><span class="p">,</span> <span class="n">mark</span><span class="p">,</span> <span class="n">query</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">"?"</span><span class="p">)</span>
+    <span class="n">netloc</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">tail</span> <span class="o">=</span> <span class="n">location</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
+    <span class="n">database</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">inner</span> <span class="o">=</span> <span class="n">tail</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
+    <span class="n">dsn</span> <span class="o">=</span> <span class="n">target</span> <span class="o">+</span> <span class="n">netloc</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">"/</span><span class="si">{</span><span class="n">database</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">database</span> <span class="k">else</span> <span class="s2">""</span><span class="p">)</span>
+    <span class="n">inner</span> <span class="o">=</span> <span class="n">inner</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">inner</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">dsn</span> <span class="o">+</span> <span class="n">mark</span> <span class="o">+</span> <span class="n">query</span><span class="p">,</span> <span class="s2">"/"</span>
+    <span class="k">return</span> <span class="n">dsn</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"/</span><span class="si">{</span><span class="n">inner</span><span class="si">}{</span><span class="n">mark</span><span class="si">}{</span><span class="n">query</span><span class="si">}</span><span class="s2">"</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_records_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return whether ``path`` is under ``schema/table/records``, where records change on every write."""</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"?"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"/"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"records"</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_ddl_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>

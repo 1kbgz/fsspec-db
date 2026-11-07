@@ -28,7 +28,7 @@
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="next" title="Backend configuration and types" href="backends.html" />
-    <link rel="prev" title="How to manage tables and metadata caches" href="how-to-manage.html" />
+    <link rel="prev" title="How to store keyed records" href="records.html" />
     <script>
       (function () {
         var root = document.documentElement;
@@ -103,6 +103,11 @@
     </a>
   </li>
   <li class="fd-tree-item">
+    <a class="fd-link" href="records.html">
+      <span class="fd-link-text">How to store keyed records</span>
+    </a>
+  </li>
+  <li class="fd-tree-item">
     <a class="fd-link fd-current" href="#">
       <span class="fd-link-text">Paths and metadata</span>
     </a>
@@ -174,6 +179,12 @@
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#write-modes">Write modes</a>
+  </li>
+  <li class="fd-toc-item" data-depth="1">
+    <a href="#records">Records</a>
+  </li>
+  <li class="fd-toc-item" data-depth="1">
+    <a href="#urls">URLs</a>
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#ddl-and-cache-controls">DDL and cache controls</a>
@@ -254,6 +265,12 @@
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/{schema}/{relation}.sql</span></code></p></td>
 <td><p>Relation DDL text.</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/{schema}/{table}/records</span></code></p></td>
+<td><p>Records of a table with a primary key.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/{schema}/{table}/records/{key...}</span></code></p></td>
+<td><p>One record, or a directory of keys.</p></td>
+</tr>
 </tbody>
 </table>
 <p>SQLite normally exposes the default database as <code class="docutils literal notranslate"><span class="pre">/main</span></code>. Native backends render
@@ -270,9 +287,10 @@ available when its backend implements <code class="docutils literal notranslate"
 <span class="c1"># ["/main/users", "/main/active_users"]</span>
 
 <span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main/users"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-<span class="c1"># ["/main/users/columns", "/main/users/indexes", "/main/users/constraints"]</span>
+<span class="c1"># ["/main/users/columns", "/main/users/indexes", "/main/users/constraints", "/main/users/records"]</span>
 </pre></div>
 </div>
+<p>Tables without a primary key have no <code class="docutils literal notranslate"><span class="pre">records</span></code> entry.</p>
 <p><code class="docutils literal notranslate"><span class="pre">detail=True</span></code> returns fsspec info dictionaries:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"/main/users/columns"</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
@@ -431,6 +449,94 @@ column-value reads; the default limit is 100.</p>
 update modes raise <code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code>. Writes decode the completed encoded
 stream at commit time. Unclosed native write handles are discarded.</p>
 </section>
+<section id="records">
+<h2>Records<a class="headerlink" href="#records" title="Link to this heading">¶</a></h2>
+<p>Path segments after <code class="docutils literal notranslate"><span class="pre">records/</span></code> map to primary-key columns in key order, so a composite
+key is a nested directory. The last key column takes the rest of the path and may
+contain <code class="docutils literal notranslate"><span class="pre">/</span></code>. Keys are stored exactly as the path segments are written; callers that
+need <code class="docutils literal notranslate"><span class="pre">/</span></code> or other reserved characters inside a segment should encode them.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Table shape</p></th>
+<th class="head"><p>Record path</p></th>
+<th class="head"><p>Contents</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Exactly one non-key column, of binary type</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">records/{key...}</span></code></p></td>
+<td><p>The column value, unchanged.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Any other table with a primary key</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">records/{key...}.json</span></code></p></td>
+<td><p>The row as one JSON object.</p></td>
+</tr>
+</tbody>
+</table>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Operation</p></th>
+<th class="head"><p>Behavior</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cat_file</span></code>, <code class="docutils literal notranslate"><span class="pre">open(path,</span> <span class="pre">&quot;rb&quot;)</span></code></p></td>
+<td><p>Reads one record; a missing key raises <code class="docutils literal notranslate"><span class="pre">FileNotFoundError</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pipe_file</span></code>, <code class="docutils literal notranslate"><span class="pre">open(path,</span> <span class="pre">&quot;wb&quot;)</span></code></p></td>
+<td><p>Inserts or replaces one row with a single upsert statement.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rm_file</span></code>, <code class="docutils literal notranslate"><span class="pre">rm</span></code></p></td>
+<td><p>Deletes one row. Deleting a missing key succeeds.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ls</span></code>, <code class="docutils literal notranslate"><span class="pre">find</span></code></p></td>
+<td><p>Select key columns only and are never cached.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">open(path,</span> <span class="pre">&quot;ab&quot;)</span></code>, <code class="docutils literal notranslate"><span class="pre">mode=&quot;append&quot;</span></code></p></td>
+<td><p>Raise <code class="docutils literal notranslate"><span class="pre">OSError</span></code>; records are replaced, not appended.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Upserts use <code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">CONFLICT</span></code> on SQLite and PostgreSQL and <code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">DUPLICATE</span> <span class="pre">KEY</span> <span class="pre">UPDATE</span></code> on
+MySQL. Listing under a partial last key compares bytes (<code class="docutils literal notranslate"><span class="pre">COLLATE</span> <span class="pre">BINARY</span></code> on SQLite,
+<code class="docutils literal notranslate"><span class="pre">COLLATE</span> <span class="pre">&quot;C&quot;</span></code> on PostgreSQL, <code class="docutils literal notranslate"><span class="pre">CAST(...</span> <span class="pre">AS</span> <span class="pre">BINARY)</span></code> on MySQL), so prefixes do not depend
+on the column collation. Record writes and deletes do not need <code class="docutils literal notranslate"><span class="pre">allow_ddl</span></code>. Records
+are available on the native SQLite, PostgreSQL, and MySQL backends.</p>
+</section>
+<section id="urls">
+<h2>URLs<a class="headerlink" href="#urls" title="Link to this heading">¶</a></h2>
+<p>A URL names the database, optionally followed by a path inside it:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>URL</p></th>
+<th class="head"><p>Database</p></th>
+<th class="head"><p>Path</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">db+sqlite://app.db</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">app.db</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">db+sqlite:///data/app.db/main/kv/records</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/data/app.db</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/main/kv/records</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">db+postgresql://user&#64;host:5432/app/public/kv</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">app</span></code> on <code class="docutils literal notranslate"><span class="pre">host</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/public/kv</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">db+mysql://user&#64;host:3306/app/app/kv</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">app</span></code> on <code class="docutils literal notranslate"><span class="pre">host</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/app/kv</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>For SQLite, the database ends at the first segment ending in <code class="docutils literal notranslate"><span class="pre">.db</span></code>, <code class="docutils literal notranslate"><span class="pre">.sqlite</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">.sqlite3</span></code>. For PostgreSQL and MySQL, it is the first path segment. A query string
+belongs to the connection when the URL has no path inside the database, and to the
+path otherwise.</p>
+</section>
 <section id="ddl-and-cache-controls">
 <h2>DDL and cache controls<a class="headerlink" href="#ddl-and-cache-controls" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">allow_ddl=False</span></code> is the default. Guarded <code class="docutils literal notranslate"><span class="pre">mkdir</span></code>, <code class="docutils literal notranslate"><span class="pre">rm_file</span></code>, and <code class="docutils literal notranslate"><span class="pre">mv</span></code> raise
@@ -449,11 +555,11 @@ cache entries, even when a path is supplied. Listing cache options include
 
       </div>
 <nav class="fd-pagination" aria-label="Pagination">
-  <a class="fd-pagination-card fd-pagination-prev" href="how-to-manage.html" title="Previous: How to manage tables and metadata caches">
+  <a class="fd-pagination-card fd-pagination-prev" href="records.html" title="Previous: How to store keyed records">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="fd-icon "><path d="m15 18-6-6 6-6"/></svg>
     <span class="fd-pagination-text">
       <span class="fd-pagination-label">Previous</span>
-      <span class="fd-pagination-title">How to manage tables and metadata caches</span>
+      <span class="fd-pagination-title">How to store keyed records</span>
     </span>
   </a>
   <a class="fd-pagination-card fd-pagination-next" href="backends.html" title="Next: Backend configuration and types">
@@ -505,6 +611,12 @@ cache entries, even when a path is supplied. Listing cache options include
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#write-modes">Write modes</a>
+  </li>
+  <li class="fd-toc-item" data-depth="1">
+    <a href="#records">Records</a>
+  </li>
+  <li class="fd-toc-item" data-depth="1">
+    <a href="#urls">URLs</a>
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#ddl-and-cache-controls">DDL and cache controls</a>
