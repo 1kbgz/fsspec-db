@@ -242,6 +242,7 @@ pages = [
     "docs/src/sql-backends.md",
     "docs/src/adapter-backends.md",
     "docs/src/how-to-manage.md",
+    "docs/src/records.md",
     "docs/src/paths.md",
     "docs/src/backends.md",
     "docs/src/python-backends.md",

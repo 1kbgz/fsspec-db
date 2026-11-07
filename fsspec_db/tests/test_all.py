@@ -102,7 +102,7 @@ def test_abstract_database_contract_matches_rust_trait():
     rust_database = Path(__file__).resolve().parents[2] / "rust" / "src" / "database.rs"
     trait_source = rust_database.read_text().split("pub trait Database", 1)[1]
     rust_methods = set(re.findall(r"^    fn ([a-z_]+)\(", trait_source, flags=re.MULTILINE))
-    rust_only_defaults = {"arrow_extraction"}
+    rust_only_defaults = {"arrow_extraction", "execute"}
 
     assert set(AbstractDatabase.__abstractmethods__) == rust_methods - rust_only_defaults
 
@@ -692,10 +692,17 @@ def test_sqlite_filesystem_url_path_reads(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     fs, token = fsspec.core.url_to_fs("db+sqlite://app.db")
 
-    assert token == "app.db"
+    assert token == "/"
     assert isinstance(fs, SQLiteDatabaseFileSystem)
     assert fs.database == "app.db"
     assert fs.query("SELECT name FROM users").column("name").to_pylist() == ["ada"]
+
+    fs, token = fsspec.core.url_to_fs("db+sqlite://app.db/main/users/columns")
+    assert (fs.database, token) == ("app.db", "/main/users/columns")
+    assert fs.ls(token, detail=False)[0] == "/main/users/columns/id"
+    assert SQLiteDatabaseFileSystem._get_kwargs_from_urls("db+sqlite:///data/state.SQLITE3/main") == {"database": "/data/state.SQLITE3"}
+    assert SQLiteDatabaseFileSystem._get_kwargs_from_urls("db+sqlite://localhost/main") == {}
+    assert SQLiteDatabaseFileSystem._strip_protocol("db+sqlite://localhost/main") == "/main"
 
 
 def test_postgres_filesystem_url_parsing_and_registration():
@@ -704,6 +711,10 @@ def test_postgres_filesystem_url_parsing_and_registration():
         "dsn": "postgresql://user:pass@localhost:5432/app?sslmode=require"
     }
     assert PostgresDatabaseFileSystem._get_kwargs_from_urls("db+postgres://localhost/app") == {"dsn": "postgres://localhost/app"}
+    url = "db+postgresql://user@localhost/app/public/kv/records?limit=1"
+    assert PostgresDatabaseFileSystem._get_kwargs_from_urls(url) == {"dsn": "postgresql://user@localhost/app"}
+    assert PostgresDatabaseFileSystem._strip_protocol(url) == "/public/kv/records?limit=1"
+    assert PostgresDatabaseFileSystem._strip_protocol("db+postgresql://localhost/app?sslmode=require") == "/"
 
     options = {
         "host": "localhost",
@@ -728,6 +739,8 @@ def test_mysql_filesystem_url_parsing_and_registration():
     assert MySQLDatabaseFileSystem._get_kwargs_from_urls("db+mysql://user:pass@localhost:3306/app?ssl-mode=REQUIRED") == {
         "dsn": "mysql://user:pass@localhost:3306/app?ssl-mode=REQUIRED"
     }
+    assert MySQLDatabaseFileSystem._get_kwargs_from_urls("db+mysql://localhost/app/app/kv/") == {"dsn": "mysql://localhost/app"}
+    assert MySQLDatabaseFileSystem._strip_protocol("db+mysql://localhost/app/app/kv/") == "/app/kv"
 
     options = {
         "host": "localhost",

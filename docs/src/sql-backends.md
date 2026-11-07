@@ -27,6 +27,10 @@ pg, _ = fsspec.core.url_to_fs("db+postgresql://user:password@localhost:5432/app"
 mysql, _ = fsspec.core.url_to_fs("db+mysql://user:password@localhost:3306/app")
 ```
 
+Segments after the database name are a path inside it, such as
+`db+postgresql://user:password@localhost:5432/app/public/users`. See
+[URLs](paths.md#urls).
+
 Both backends also accept individual connection options:
 
 ```python

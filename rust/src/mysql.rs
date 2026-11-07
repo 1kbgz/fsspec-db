@@ -304,6 +304,16 @@ impl Database for MySqlDatabase {
         )
     }
 
+    fn execute(&self, sql: &str, params: &[DbValue]) -> Result<u64> {
+        self.block_on(async {
+            let mut query = sqlx::query(AssertSqlSafe(sql.to_string()));
+            for param in params {
+                query = bind_value(query, param);
+            }
+            Ok(query.execute(&self.pool).await?.rows_affected())
+        })
+    }
+
     fn insert(
         &self,
         schema: &str,

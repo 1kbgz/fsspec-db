@@ -213,13 +213,18 @@ impl Database for SqliteDatabase {
 
     fn list_constraints(&self, schema: &str, relation: &str) -> Result<Vec<ConstraintInfo>> {
         self.block_on(async {
-            let columns = self.list_columns_async(schema, relation).await?;
+            self.relation_info_async(schema, relation).await?;
             let mut constraints = Vec::new();
-            let pk_columns = columns
-                .iter()
-                .filter(|column| column.primary_key)
-                .map(|column| column.name.clone())
-                .collect::<Vec<_>>();
+            // `pk` is the column's 1-based position in the primary key.
+            let pk_columns =
+                sqlx::query("SELECT name FROM pragma_table_info(?, ?) WHERE pk > 0 ORDER BY pk")
+                    .bind(relation)
+                    .bind(schema)
+                    .fetch_all(&self.pool)
+                    .await?
+                    .into_iter()
+                    .map(|row| row.try_get("name").map_err(DbError::from))
+                    .collect::<Result<Vec<String>>>()?;
             if !pk_columns.is_empty() {
                 constraints.push(ConstraintInfo {
                     name: format!("pk_{relation}"),
@@ -295,6 +300,16 @@ impl Database for SqliteDatabase {
             sql.to_string(),
             params.to_vec(),
         )
+    }
+
+    fn execute(&self, sql: &str, params: &[DbValue]) -> Result<u64> {
+        self.block_on(async {
+            let mut query = sqlx::query(AssertSqlSafe(sql.to_string()));
+            for param in params {
+                query = bind_value(query, param);
+            }
+            Ok(query.execute(&self.pool).await?.rows_affected())
+        })
     }
 
     fn insert(

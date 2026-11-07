@@ -14,6 +14,7 @@ use crate::codec::{csv_to_arrow, ipc_to_arrow, jsonl_to_arrow, parquet_to_arrow}
 use crate::database::{Database, DbValue, InsertMode};
 use crate::file::DbFile;
 use crate::path::{DataFormat, DbFacet, DbPath, DbPathKind};
+use crate::records::RecordTable;
 use crate::sql::{select_sql, SelectOptions};
 use crate::stream::EncodedDbFile;
 use crate::types::{
@@ -151,6 +152,10 @@ where
     }
 
     fn ls(&self, path: &str, _detail: bool) -> FsResult<Vec<FileInfo>> {
+        // Records change with every write, so they are never cached.
+        if is_records_path(path) {
+            return self.ls_db(path).map_err(FsError::from);
+        }
         let key = format!("ls:{path}");
         if let Some(CachedIntrospection::Listing(entries)) = self
             .introspection_cache
@@ -169,6 +174,11 @@ where
     }
 
     fn rm_file(&self, path: &str) -> FsResult<()> {
+        let parsed = DbPath::parse(path).map_err(FsError::from)?;
+        if let DbPathKind::Records { key } = &parsed.kind {
+            let (table, _) = self.records(&parsed).map_err(FsError::from)?;
+            return table.delete(self.db.as_ref(), key).map_err(FsError::from);
+        }
         Err(FsError::NotSupported(format!(
             "database delete is not supported yet: {path}"
         )))
@@ -195,6 +205,9 @@ where
     }
 
     fn info(&self, path: &str) -> FsResult<FileInfo> {
+        if is_records_path(path) {
+            return self.info_db(path).map_err(FsError::from);
+        }
         let key = format!("info:{path}");
         if let Some(CachedIntrospection::Info(info)) = self
             .introspection_cache
@@ -277,8 +290,24 @@ where
                 if info.kind == RelationKind::View {
                     entries.push(facet_dir(schema, relation, DbFacet::DependsOn));
                     entries.push(view_definition_file(schema, relation, 0));
+                } else if self
+                    .db
+                    .list_columns(schema, relation)?
+                    .iter()
+                    .any(|column| column.primary_key)
+                {
+                    let mut records =
+                        FileInfo::directory(DbPath::records_path(schema, relation, &[]));
+                    records
+                        .extra
+                        .insert("kind".to_string(), "records".to_string());
+                    entries.push(records);
                 }
                 Ok(entries)
+            }
+            DbPathKind::Records { key } => {
+                let (table, _) = self.records(&parsed)?;
+                table.list(self.db.as_ref(), &key)
             }
             DbPathKind::Facet { facet, item: None } => {
                 let (schema, relation) = required_relation(&parsed)?;
@@ -331,6 +360,10 @@ where
                     relation,
                     definition.len() as u64,
                 ))
+            }
+            DbPathKind::Records { key } => {
+                let (table, _) = self.records(&parsed)?;
+                table.info(self.db.as_ref(), &key)
             }
         }
     }
@@ -389,6 +422,13 @@ where
                 let info = view_definition_file(schema, relation, data.len() as u64);
                 Ok(Box::new(DbFile::readable(data, info)))
             }
+            DbPathKind::Records { key } => {
+                let (table, _) = self.records(&parsed)?;
+                let data = table.read(self.db.as_ref(), &key)?;
+                let mut info = FileInfo::file(parsed.to_path(), data.len() as u64);
+                info.extra.insert("kind".to_string(), "record".to_string());
+                Ok(Box::new(DbFile::readable(data, info)))
+            }
             _ => Err(DbError::IsADirectory(format!(
                 "path is not a readable database file: {path}"
             ))),
@@ -438,6 +478,21 @@ where
         }
 
         let parsed = DbPath::parse(path)?;
+        if let DbPathKind::Records { key } = parsed.kind.clone() {
+            if mode != OpenMode::Write {
+                return Err(DbError::NotSupported(format!(
+                    "records can only be replaced, not appended: {path}"
+                )));
+            }
+            let (table, db) = self.records(&parsed)?;
+            let uploader: Uploader =
+                Box::new(move |data| table.write(db.as_ref(), &key, data).map_err(FsError::from));
+            return Ok(Box::new(BufferedFile::new_write(
+                path.to_string(),
+                uploader,
+                false,
+            )));
+        }
         let DbPathKind::RelationData { format } = parsed.kind.clone() else {
             return Err(DbError::InvalidArgument(format!(
                 "database writes require a relation data path: {path}"
@@ -473,6 +528,12 @@ where
         Ok(Box::new(BufferedFile::new_write(
             file_path, uploader, false,
         )))
+    }
+
+    fn records(&self, parsed: &DbPath) -> Result<(RecordTable, Arc<D>)> {
+        let (schema, relation) = required_relation(parsed)?;
+        let table = RecordTable::load(self.db.as_ref(), schema, relation)?;
+        Ok((table, Arc::clone(&self.db)))
     }
 
     fn ensure_schema(&self, name: &str) -> Result<SchemaInfo> {
@@ -549,6 +610,16 @@ fn write_bytes_to_database<D: Database>(
     mode: InsertMode,
 ) -> Result<u64> {
     let parsed = DbPath::parse(path)?;
+    if let DbPathKind::Records { key } = &parsed.kind {
+        if mode != InsertMode::Truncate {
+            return Err(DbError::NotSupported(format!(
+                "records can only be replaced, not appended: {path}"
+            )));
+        }
+        let (schema, relation) = required_relation(&parsed)?;
+        RecordTable::load(db, schema, relation)?.write(db, key, data)?;
+        return Ok(1);
+    }
     let DbPathKind::RelationData { format } = parsed.kind.clone() else {
         return Err(DbError::InvalidArgument(format!(
             "database writes require a relation data path: {path}"
@@ -591,6 +662,16 @@ fn arrow_schema<D: Database>(db: &D, schema: &str, relation: &str) -> Result<Sch
         })
         .collect::<Vec<_>>();
     Ok(Arc::new(Schema::new(fields)))
+}
+
+fn is_records_path(path: &str) -> bool {
+    matches!(
+        DbPath::parse(path),
+        Ok(DbPath {
+            kind: DbPathKind::Records { .. },
+            ..
+        })
+    )
 }
 
 fn required_schema(path: &DbPath) -> Result<&str> {
@@ -802,7 +883,7 @@ fn select_options_from_query(
     Ok(options)
 }
 
-fn arrow_type_for_database_type(data_type: &str) -> DataType {
+pub(crate) fn arrow_type_for_database_type(data_type: &str) -> DataType {
     let normalized = data_type.to_ascii_lowercase();
     if normalized.contains("bool") {
         DataType::Boolean
@@ -1137,7 +1218,8 @@ mod tests {
             vec![
                 "/main/users/columns",
                 "/main/users/indexes",
-                "/main/users/constraints"
+                "/main/users/constraints",
+                "/main/users/records"
             ]
         );
 

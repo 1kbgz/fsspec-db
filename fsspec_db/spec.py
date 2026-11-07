@@ -27,6 +27,9 @@ class IntrospectionCacheMixin:
     """Cache database listings and metadata using fsspec's bounded TTL cache."""
 
     def _cached_ls(self, path: str, detail: bool, loader: Any, refresh: bool = False) -> list[Any]:
+        if _is_records_path(path):
+            entries = loader(path, True)
+            return entries if detail else [entry["name"] for entry in entries]
         if refresh:
             self.invalidate_cache(path)
         key = path.rstrip("/") or self.root_marker
@@ -42,6 +45,8 @@ class IntrospectionCacheMixin:
         return entries if detail else [entry["name"] for entry in entries]
 
     def _cached_info(self, path: str, loader: Any, refresh: bool = False) -> dict[str, Any]:
+        if _is_records_path(path):
+            return loader(path)
         if refresh:
             self.invalidate_cache(path)
         key = _INFO_CACHE_PREFIX + (path.rstrip("/") or self.root_marker)
@@ -86,6 +91,12 @@ class DatabaseDdlMixin:
         self.invalidate_cache(path)
 
     def rm_file(self, path: str) -> None:
+        if _is_records_path(path):
+            rust = getattr(self, "_rust", None)
+            if rust is None:
+                raise NotImplementedError("records are not supported by this filesystem")
+            rust.rm_file(path)
+            return
         self._require_ddl()
         schema, relation, extension = _ddl_path(path)
         if relation is None:
@@ -118,6 +129,32 @@ class DatabaseDdlMixin:
     def _require_ddl(self) -> None:
         if not self.storage_options.get("allow_ddl", False):
             raise PermissionError("database DDL is disabled; construct the filesystem with allow_ddl=True")
+
+
+def _split_server_url(path: str, prefixes: dict[str, str]) -> tuple[str, str]:
+    """Split ``db+{driver}://netloc/database/path`` into a DSN and a path in the database.
+
+    A query string belongs to the path when there is one, and otherwise to the DSN.
+    """
+    for source, target in prefixes.items():
+        if path.startswith(source):
+            break
+    else:
+        return path, path
+    location, mark, query = path.removeprefix(source).partition("?")
+    netloc, _, tail = location.partition("/")
+    database, _, inner = tail.partition("/")
+    dsn = target + netloc + (f"/{database}" if database else "")
+    inner = inner.strip("/")
+    if not inner:
+        return dsn + mark + query, "/"
+    return dsn, f"/{inner}{mark}{query}"
+
+
+def _is_records_path(path: str) -> bool:
+    """Return whether ``path`` is under ``schema/table/records``, where records change on every write."""
+    parts = path.split("?", 1)[0].strip("/").split("/")
+    return len(parts) >= 3 and parts[2] == "records"
 
 
 def _ddl_path(path: str) -> tuple[str, str | None, str | None]:

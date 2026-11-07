@@ -420,6 +420,9 @@ impl PyDatabaseFs {
             .write_bytes(path, data.as_bytes(), parse_insert_mode(mode)?)
             .map_err(db_error_to_pyerr)
     }
+    fn rm_file(&self, path: &str) -> PyResult<()> {
+        self.inner.rm_file(path).map_err(fs_error_to_pyerr)
+    }
 }
 
 #[pyclass(name = "RustSqliteDatabaseFs", skip_from_py_object)]
@@ -522,6 +525,10 @@ impl PySqliteDatabaseFs {
         let mode = parse_insert_mode(mode)?;
         py.detach(|| self.inner.write_bytes(path, &data, mode))
             .map_err(db_error_to_pyerr)
+    }
+    fn rm_file(&self, py: Python<'_>, path: &str) -> PyResult<()> {
+        py.detach(|| self.inner.rm_file(path))
+            .map_err(fs_error_to_pyerr)
     }
 }
 
@@ -637,6 +644,10 @@ impl PyPostgresDatabaseFs {
         py.detach(|| self.inner.write_bytes(path, &data, mode))
             .map_err(db_error_to_pyerr)
     }
+    fn rm_file(&self, py: Python<'_>, path: &str) -> PyResult<()> {
+        py.detach(|| self.inner.rm_file(path))
+            .map_err(fs_error_to_pyerr)
+    }
 }
 
 #[pyclass(name = "RustMySqlDatabaseFs", skip_from_py_object)]
@@ -750,6 +761,10 @@ impl PyMySqlDatabaseFs {
         let mode = parse_insert_mode(mode)?;
         py.detach(|| self.inner.write_bytes(path, &data, mode))
             .map_err(db_error_to_pyerr)
+    }
+    fn rm_file(&self, py: Python<'_>, path: &str) -> PyResult<()> {
+        py.detach(|| self.inner.rm_file(path))
+            .map_err(fs_error_to_pyerr)
     }
 }
 

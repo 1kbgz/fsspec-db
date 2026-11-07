@@ -156,7 +156,7 @@ test-integration-rs:  ## run the env-gated rust integration tests
 	FSSPEC_DB_POSTGRES_URL="$(FSSPEC_DB_POSTGRES_URL)" FSSPEC_DB_MYSQL_URL="$(FSSPEC_DB_MYSQL_URL)" $(MAKE) -C rust test
 
 test-integration-py:  ## run the env-gated python integration tests
-	FSSPEC_DB_POSTGRES_URL="$(FSSPEC_DB_POSTGRES_URL)" FSSPEC_DB_MYSQL_URL="$(FSSPEC_DB_MYSQL_URL)" python -m pytest -v fsspec_db/tests/test_integration.py
+	FSSPEC_DB_POSTGRES_URL="$(FSSPEC_DB_POSTGRES_URL)" FSSPEC_DB_MYSQL_URL="$(FSSPEC_DB_MYSQL_URL)" python -m pytest -v fsspec_db/tests/test_integration.py fsspec_db/tests/test_records.py
 
 test-integration:  ## bring up dbs, run all integration tests, and always tear them down
 	@status=0; \

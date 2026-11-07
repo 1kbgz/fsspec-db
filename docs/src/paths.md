@@ -30,6 +30,8 @@ fs.ls("/main")
 | `/{schema}/{relation}.csv`                      | Materialized relation as CSV.                 |
 | `/{schema}/{relation}.jsonl`                    | Materialized relation as line-delimited JSON. |
 | `/{schema}/{relation}.sql`                      | Relation DDL text.                            |
+| `/{schema}/{table}/records`                     | Records of a table with a primary key.        |
+| `/{schema}/{table}/records/{key...}`            | One record, or a directory of keys.           |
 
 SQLite normally exposes the default database as `/main`. Native backends render
 relation `.sql` data paths. The direct `PyDatabaseFileSystem` adapter raises
@@ -46,8 +48,10 @@ fs.ls("/main", detail=False)
 # ["/main/users", "/main/active_users"]
 
 fs.ls("/main/users", detail=False)
-# ["/main/users/columns", "/main/users/indexes", "/main/users/constraints"]
+# ["/main/users/columns", "/main/users/indexes", "/main/users/constraints", "/main/users/records"]
 ```
+
+Tables without a primary key have no `records` entry.
 
 `detail=True` returns fsspec info dictionaries:
 
@@ -150,6 +154,48 @@ column-value reads; the default limit is 100.
 Supported open modes are `r`, `rb`, `w`, `wb`, `a`, and `ab`. Exclusive-create and
 update modes raise `NotImplementedError`. Writes decode the completed encoded
 stream at commit time. Unclosed native write handles are discarded.
+
+## Records
+
+Path segments after `records/` map to primary-key columns in key order, so a composite
+key is a nested directory. The last key column takes the rest of the path and may
+contain `/`. Keys are stored exactly as the path segments are written; callers that
+need `/` or other reserved characters inside a segment should encode them.
+
+| Table shape                                | Record path             | Contents                     |
+| ------------------------------------------ | ----------------------- | ---------------------------- |
+| Exactly one non-key column, of binary type | `records/{key...}`      | The column value, unchanged. |
+| Any other table with a primary key         | `records/{key...}.json` | The row as one JSON object.  |
+
+| Operation                           | Behavior                                                    |
+| ----------------------------------- | ----------------------------------------------------------- |
+| `cat_file`, `open(path, "rb")`      | Reads one record; a missing key raises `FileNotFoundError`. |
+| `pipe_file`, `open(path, "wb")`     | Inserts or replaces one row with a single upsert statement. |
+| `rm_file`, `rm`                     | Deletes one row. Deleting a missing key succeeds.           |
+| `ls`, `find`                        | Select key columns only and are never cached.               |
+| `open(path, "ab")`, `mode="append"` | Raise `OSError`; records are replaced, not appended.        |
+
+Upserts use `ON CONFLICT` on SQLite and PostgreSQL and `ON DUPLICATE KEY UPDATE` on
+MySQL. Listing under a partial last key compares bytes (`COLLATE BINARY` on SQLite,
+`COLLATE "C"` on PostgreSQL, `CAST(... AS BINARY)` on MySQL), so prefixes do not depend
+on the column collation. Record writes and deletes do not need `allow_ddl`. Records
+are available on the native SQLite, PostgreSQL, and MySQL backends.
+
+## URLs
+
+A URL names the database, optionally followed by a path inside it:
+
+| URL                                            | Database        | Path               |
+| ---------------------------------------------- | --------------- | ------------------ |
+| `db+sqlite://app.db`                           | `app.db`        | `/`                |
+| `db+sqlite:///data/app.db/main/kv/records`     | `/data/app.db`  | `/main/kv/records` |
+| `db+postgresql://user@host:5432/app/public/kv` | `app` on `host` | `/public/kv`       |
+| `db+mysql://user@host:3306/app/app/kv`         | `app` on `host` | `/app/kv`          |
+
+For SQLite, the database ends at the first segment ending in `.db`, `.sqlite`, or
+`.sqlite3`. For PostgreSQL and MySQL, it is the first path segment. A query string
+belongs to the connection when the URL has no path inside the database, and to the
+path otherwise.
 
 ## DDL and cache controls
 
