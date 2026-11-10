@@ -27,6 +27,7 @@ const PROTOCOLS: &[&str] = &["db"];
 pub struct DatabaseFs<D> {
     db: Arc<D>,
     introspection_cache: Mutex<IntrospectionCache>,
+    location: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -124,7 +125,15 @@ impl<D> DatabaseFs<D> {
         Self {
             db: Arc::new(db),
             introspection_cache: Mutex::new(IntrospectionCache::new(cache_options)),
+            location: None,
         }
+    }
+
+    /// Strips `location`, the database part of a URL such as `host:5432/app` in
+    /// `db+postgres://host:5432/app/public/users`, from paths given to `strip_protocol`.
+    pub fn with_location(mut self, location: impl Into<String>) -> Self {
+        self.location = Some(location.into());
+        self
     }
 
     pub fn database(&self) -> &D {
@@ -149,6 +158,46 @@ where
 
     fn root_marker(&self) -> &str {
         "/"
+    }
+
+    fn strip_protocol(&self, path: &str) -> String {
+        let Some(location) = self
+            .location
+            .as_deref()
+            .filter(|location| !location.is_empty())
+        else {
+            let path = path.strip_prefix("db://").unwrap_or(path);
+            return if path.is_empty() {
+                self.root_marker().to_string()
+            } else {
+                path.to_string()
+            };
+        };
+        let path = match path.split_once("://") {
+            Some((scheme, rest))
+                if !scheme.is_empty()
+                    && scheme
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || "+-.".contains(c)) =>
+            {
+                rest
+            }
+            _ => path,
+        };
+        match path.strip_prefix(location) {
+            Some(rest) if rest.is_empty() || rest.starts_with(['/', '?']) => {
+                let (inner, query) = match rest.split_once('?') {
+                    Some((inner, query)) => (inner, Some(query)),
+                    None => (rest, None),
+                };
+                let inner = format!("/{}", inner.trim_matches('/'));
+                match query {
+                    Some(query) => format!("{inner}?{query}"),
+                    None => inner,
+                }
+            }
+            _ => path.to_string(),
+        }
     }
 
     fn ls(&self, path: &str, _detail: bool) -> FsResult<Vec<FileInfo>> {
