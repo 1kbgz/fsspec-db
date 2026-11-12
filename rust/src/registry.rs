@@ -337,6 +337,8 @@ mod tests {
             .unwrap();
         assert_eq!(path, "/main/users");
         assert_eq!(from_options.strip_protocol("/main/users"), "/main/users");
+        // Windows cannot delete database files while a connection holds them open.
+        drop((fs, same, other, from_options, registry));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
