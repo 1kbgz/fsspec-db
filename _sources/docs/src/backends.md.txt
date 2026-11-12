@@ -18,6 +18,27 @@ accepts `ssl_mode` and `charset`. Both accept `min_connections` and
 fsspec config sections use the backend protocol name; explicit constructor
 arguments take precedence.
 
+### Opening databases from Rust URLs
+
+The `fsspec_db` crate exports `DatabaseFsFactory` and `register` for the fsspec-rs
+`FilesystemRegistry`. `register` adds `db+sqlite`, `db+postgres`, `db+postgresql`,
+and `db+mysql`:
+
+```rust
+use fsspec_rs::{FilesystemRegistry, FsOptions};
+
+let mut registry = FilesystemRegistry::default();
+fsspec_db::register(&mut registry);
+let (fs, path) = registry.url_to_fs("db+sqlite://state.db/main/users.arrow", &FsOptions::new())?;
+# Ok::<(), fsspec_rs::FsError>(())
+```
+
+URLs and options follow the Python filesystems above: SQLite uses the first path
+segment ending in `.db`, `.sqlite`, or `.sqlite3`, and PostgreSQL and MySQL use
+`netloc/database`. Each database gets its own cached filesystem, and the rest of the
+URL is the returned path. A `dsn` option takes precedence over the URL, which
+takes precedence over `url` and the connection fields. Unknown options are rejected.
+
 ## Parameters
 
 Raw `query(sql, params=None)` uses driver-specific placeholders:

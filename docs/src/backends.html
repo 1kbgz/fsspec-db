@@ -13,7 +13,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
     <link rel="stylesheet" type="text/css" href="../../_static/autodoc_pydantic.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=6a604523" />
     <link rel="stylesheet" type="text/css" href="../../_static/fonts/fuma-fonts.css?v=c2892c73" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/custom.css?v=88c24c6a" />
     <script src="../../_static/documentation_options.js?v=71d9d8e6"></script>
@@ -21,7 +21,7 @@
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
-    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="../../_static/design-tabs.js?v=fcb327ea"></script>
     <script data-searchlite-index="searchlite-index.json" defer="defer" src="../../_static/searchlite.js?v=a5320898"></script>
     <script defer="defer" src="../../_static/fuma.js?v=9c325f6c"></script>
     <script src="../../_static/js/custom.js?v=956e5d78"></script>
@@ -156,6 +156,9 @@
   <li class="fd-toc-item" data-depth="1">
     <a href="#protocols-and-construction">Protocols and construction</a>
   </li>
+  <li class="fd-toc-item" data-depth="2">
+    <a href="#opening-databases-from-rust-urls">Opening databases from Rust URLs</a>
+  </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#parameters">Parameters</a>
   </li>
@@ -219,6 +222,25 @@ accepts <code class="docutils literal notranslate"><span class="pre">ssl_mode</s
 <code class="docutils literal notranslate"><span class="pre">max_connections</span></code>. An explicit DSN or URL takes precedence over connection fields.
 fsspec config sections use the backend protocol name; explicit constructor
 arguments take precedence.</p>
+<section id="opening-databases-from-rust-urls">
+<h3>Opening databases from Rust URLs<a class="headerlink" href="#opening-databases-from-rust-urls" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">fsspec_db</span></code> crate exports <code class="docutils literal notranslate"><span class="pre">DatabaseFsFactory</span></code> and <code class="docutils literal notranslate"><span class="pre">register</span></code> for the fsspec-rs
+<code class="docutils literal notranslate"><span class="pre">FilesystemRegistry</span></code>. <code class="docutils literal notranslate"><span class="pre">register</span></code> adds <code class="docutils literal notranslate"><span class="pre">db+sqlite</span></code>, <code class="docutils literal notranslate"><span class="pre">db+postgres</span></code>, <code class="docutils literal notranslate"><span class="pre">db+postgresql</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">db+mysql</span></code>:</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">fsspec_rs</span><span class="p">::{</span><span class="n">FilesystemRegistry</span><span class="p">,</span><span class="w"> </span><span class="n">FsOptions</span><span class="p">};</span>
+
+<span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">registry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FilesystemRegistry</span><span class="p">::</span><span class="n">default</span><span class="p">();</span>
+<span class="n">fsspec_db</span><span class="p">::</span><span class="n">register</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">registry</span><span class="p">);</span>
+<span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">fs</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">registry</span><span class="p">.</span><span class="n">url_to_fs</span><span class="p">(</span><span class="s">"db+sqlite://state.db/main/users.arrow"</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">FsOptions</span><span class="p">::</span><span class="n">new</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+<span class="p">#</span><span class="w"> </span><span class="nb">Ok</span><span class="p">::</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="n">fsspec_rs</span><span class="p">::</span><span class="n">FsError</span><span class="o">&gt;</span><span class="p">(())</span>
+</pre></div>
+</div>
+<p>URLs and options follow the Python filesystems above: SQLite uses the first path
+segment ending in <code class="docutils literal notranslate"><span class="pre">.db</span></code>, <code class="docutils literal notranslate"><span class="pre">.sqlite</span></code>, or <code class="docutils literal notranslate"><span class="pre">.sqlite3</span></code>, and PostgreSQL and MySQL use
+<code class="docutils literal notranslate"><span class="pre">netloc/database</span></code>. Each database gets its own cached filesystem, and the rest of the
+URL is the returned path. A <code class="docutils literal notranslate"><span class="pre">dsn</span></code> option takes precedence over the URL, which
+takes precedence over <code class="docutils literal notranslate"><span class="pre">url</span></code> and the connection fields. Unknown options are rejected.</p>
+</section>
 </section>
 <section id="parameters">
 <h2>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">¶</a></h2>
@@ -429,6 +451,9 @@ the extraction strategy without changing path semantics.</p>
     </svg><ul class="fd-toc-list">
   <li class="fd-toc-item" data-depth="1">
     <a href="#protocols-and-construction">Protocols and construction</a>
+  </li>
+  <li class="fd-toc-item" data-depth="2">
+    <a href="#opening-databases-from-rust-urls">Opening databases from Rust URLs</a>
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#parameters">Parameters</a>
