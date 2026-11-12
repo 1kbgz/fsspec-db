@@ -868,7 +868,7 @@ dependencies = [
 
 [[package]]
 name = "fsspec_db"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "arrow",
  "csv-core",
@@ -884,7 +884,7 @@ dependencies = [
 
 [[package]]
 name = "fsspec_db_py"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "fsspec_db",
  "fsspec_rs",
