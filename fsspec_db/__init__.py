@@ -1,4 +1,8 @@
+# The extension links libfsspec from the fsspec_rs package, which puts its lib/ on the DLL path.
+import fsspec_rs
+
 from .duckdb import DuckDBDatabase, DuckDBDatabaseFileSystem
+from .fsspec_db import linked_to_libfsspec
 from .mysql import MySQLDatabaseFileSystem
 from .odbc import OdbcDatabase, OdbcDatabaseFileSystem
 from .postgres import PostgresDatabaseFileSystem
@@ -38,4 +42,5 @@ __all__ = [
     "SQLiteDatabaseFileSystem",
     "SchemaInfo",
     "__version__",
+    "linked_to_libfsspec",
 ]

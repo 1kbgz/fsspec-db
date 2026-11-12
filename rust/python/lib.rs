@@ -1,10 +1,13 @@
 use pyo3::prelude::*;
 
 mod database;
+mod registry;
 mod types;
 
 #[pymodule]
 fn fsspec_db(m: &Bound<PyModule>) -> PyResult<()> {
+    registry::register()?;
+    m.add_function(wrap_pyfunction!(registry::linked_to_libfsspec, m)?)?;
     m.add_class::<database::PyDatabaseFs>()?;
     m.add_class::<database::PyDbFile>()?;
     m.add_class::<database::PySqliteDatabaseFs>()?;

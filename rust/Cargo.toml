@@ -17,8 +17,8 @@ crate-type = ["rlib"]
 arrow = "60.1.0"
 csv-core = "0.1"
 futures-util = "0.3"
-fsspec_data = "0.4.0"
-fsspec_rs = "0.1.8"
+fsspec_data = "0.6.0"
+fsspec_rs = "0.2.0"
 parquet = "60.1.0"
 serde_json = "1"
 sqlparser = { version = "0.63.0", features = ["visitor"] }

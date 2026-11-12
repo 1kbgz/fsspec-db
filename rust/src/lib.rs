@@ -26,7 +26,7 @@ pub use fsspec_rs::{FileInfo, FileSystem, FileType, FsError, FsFile, OpenMode};
 pub use mysql::MySqlDatabase;
 pub use path::{DataFormat, DbFacet, DbPath, DbPathKind};
 pub use postgres::PostgresDatabase;
-pub use registry::{register, DatabaseFsFactory};
+pub use registry::{factories, register, DatabaseFsFactory};
 pub use sql::{insert_sql, quote_identifier, select_sql, SelectOptions};
 pub use sqlite::SqliteDatabase;
 pub use types::{

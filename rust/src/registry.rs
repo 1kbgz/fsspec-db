@@ -58,12 +58,22 @@ impl DatabaseFsFactory {
     }
 }
 
-/// Registers `db+sqlite`, `db+postgres`, `db+postgresql`, and `db+mysql`.
+/// The protocols and factories [`register`] installs: `db+sqlite`, `db+postgres`,
+/// `db+postgresql`, and `db+mysql`.
+pub fn factories() -> [(&'static str, DatabaseFsFactory); 4] {
+    [
+        ("db+sqlite", DatabaseFsFactory::sqlite()),
+        ("db+postgres", DatabaseFsFactory::postgres()),
+        ("db+postgresql", DatabaseFsFactory::postgres()),
+        ("db+mysql", DatabaseFsFactory::mysql()),
+    ]
+}
+
+/// Registers every entry of [`factories`].
 pub fn register(registry: &mut FilesystemRegistry) {
-    registry.register("db+sqlite", DatabaseFsFactory::sqlite());
-    registry.register("db+postgres", DatabaseFsFactory::postgres());
-    registry.register("db+postgresql", DatabaseFsFactory::postgres());
-    registry.register("db+mysql", DatabaseFsFactory::mysql());
+    for (protocol, factory) in factories() {
+        registry.register(protocol, factory);
+    }
 }
 
 impl FilesystemFactory for DatabaseFsFactory {
