@@ -1,8 +1,9 @@
+from importlib import import_module
+
 # The extension links libfsspec from the fsspec_rs package, which puts its lib/ on the DLL path.
 import fsspec_rs
 
 from .duckdb import DuckDBDatabase, DuckDBDatabaseFileSystem
-from .fsspec_db import linked_to_libfsspec
 from .mysql import MySQLDatabaseFileSystem
 from .odbc import OdbcDatabase, OdbcDatabaseFileSystem
 from .postgres import PostgresDatabaseFileSystem
@@ -19,6 +20,8 @@ from .spec import (
 )
 from .sqlalchemy import SQLAlchemyDatabase, SQLAlchemyDatabaseFileSystem
 from .sqlite import SQLiteDatabaseFileSystem
+
+linked_to_libfsspec = import_module(".fsspec_db", __package__).linked_to_libfsspec
 
 __version__ = "0.3.2"
 

@@ -6,7 +6,7 @@ from sys import platform
 
 import fsspec_rs
 import pytest
-from fsspec_rs.fsspec_rs import protocols
+from fsspec_rs.fsspec_rs import protocols  # ty: ignore[import-not-found]
 
 import fsspec_db
 
