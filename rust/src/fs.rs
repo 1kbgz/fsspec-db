@@ -22,7 +22,15 @@ use crate::types::{
 };
 use crate::{DbError, Result};
 
-const PROTOCOLS: &[&str] = &["db"];
+/// The registry protocols for `dialect`, with the one `unstrip_protocol` writes first.
+fn protocols(dialect: Dialect) -> &'static [&'static str] {
+    match dialect {
+        Dialect::Sqlite => &["db+sqlite"],
+        Dialect::Postgres => &["db+postgresql", "db+postgres"],
+        Dialect::MySql => &["db+mysql"],
+        Dialect::Generic => &["db"],
+    }
+}
 
 pub struct DatabaseFs<D> {
     db: Arc<D>,
@@ -153,7 +161,21 @@ where
     D: Database + 'static,
 {
     fn protocol(&self) -> &[&str] {
-        PROTOCOLS
+        protocols(self.db.dialect())
+    }
+
+    /// The inverse of [`strip_protocol`](Self::strip_protocol): puts the database
+    /// location back so the URL opens the same database.
+    fn unstrip_protocol(&self, path: &str) -> String {
+        let protocol = self.protocol()[0];
+        match self
+            .location
+            .as_deref()
+            .filter(|location| !location.is_empty())
+        {
+            Some(location) => format!("{protocol}://{location}/{}", path.trim_start_matches('/')),
+            None => format!("{protocol}://{path}"),
+        }
     }
 
     fn root_marker(&self) -> &str {

@@ -298,6 +298,40 @@ mod tests {
     }
 
     #[test]
+    fn listed_paths_unstrip_to_urls_that_resolve_again() {
+        let dir = std::env::temp_dir().join(format!("fsspec-db-unstrip-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let database = dir.join("state.db");
+        let database = database.to_str().unwrap();
+        let registry = registry();
+
+        let (fs, path) = registry
+            .url_to_fs(&format!("db+sqlite://{database}/main"), &FsOptions::new())
+            .unwrap();
+        fs.mkdir("/main/users", false).ok();
+        assert_eq!(fs.protocol(), ["db+sqlite"]);
+        let url = fs.unstrip_protocol(&format!("{path}/users"));
+        assert_eq!(url, format!("db+sqlite://{database}/main/users"));
+
+        let (same, child) = registry.url_to_fs(&url, &FsOptions::new()).unwrap();
+        assert!(Arc::ptr_eq(&fs, &same));
+        assert_eq!(child, "/main/users");
+
+        let (memory, _) = registry
+            .url_to_fs(
+                "db+sqlite://localhost/main",
+                &options(&[("database", ":memory:")]),
+            )
+            .unwrap();
+        assert_eq!(
+            memory.unstrip_protocol("/main/t"),
+            "db+sqlite://localhost/main/t"
+        );
+        drop((fs, same, memory, registry));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn sqlite_urls_resolve_to_one_filesystem_per_database() {
         let dir = std::env::temp_dir().join(format!("fsspec-db-registry-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
