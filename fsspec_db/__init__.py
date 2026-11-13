@@ -23,7 +23,7 @@ from .sqlite import SQLiteDatabaseFileSystem
 
 linked_to_libfsspec = import_module(".fsspec_db", __package__).linked_to_libfsspec
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 __all__ = [
     "AbstractDatabase",
