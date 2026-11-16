@@ -1,0 +1,67 @@
+import io
+import json
+import sqlite3
+
+import fsspec
+import pyarrow.parquet as pq
+import pytest
+from fsspec_data import DataViewFileSystem, Facet
+
+from fsspec_db import SQLAlchemyDatabaseFileSystem, SQLiteDatabaseFileSystem
+
+SHOP = """
+create table customers(id integer primary key, name text not null);
+create table orders(id integer primary key, customer_id integer references customers(id), amount real);
+create index orders_customer on orders(customer_id);
+insert into customers values (1, 'a'), (2, 'b');
+insert into orders values (1, 1, 10), (2, 2, 20), (3, 1, 5);
+create view big_orders as select * from orders where amount > 8;
+"""
+
+
+@pytest.fixture(params=["native", "sqlalchemy"])
+def shop(request, tmp_path):
+    database = tmp_path / "shop.db"
+    connection = sqlite3.connect(database)
+    connection.executescript(SHOP)
+    connection.commit()
+    connection.close()
+    if request.param == "native":
+        fs, _ = fsspec.core.url_to_fs(f"db+sqlite://{database}", skip_instance_cache=True)
+    else:
+        sqlalchemy = pytest.importorskip("sqlalchemy")
+        fs = SQLAlchemyDatabaseFileSystem(engine=sqlalchemy.create_engine(f"sqlite:///{database}"), skip_instance_cache=True)
+    return fs
+
+
+def test_database_filesystems_are_data_sources(shop):
+    assert isinstance(shop, (SQLiteDatabaseFileSystem, SQLAlchemyDatabaseFileSystem))
+    assert shop.describe("/main/orders").facets == {Facet.CHILDREN, Facet.TABLE, Facet.METADATA}
+    assert shop.describe("/main/orders/columns").facets == {Facet.CHILDREN}
+    assert shop.describe("/main/orders/columns/amount").facets == {Facet.METADATA}
+    assert shop.describe("/main/big_orders/definition.sql").facets == {Facet.RAW}
+    assert sorted(node.path for node in shop.children("/main")) == ["/main/big_orders", "/main/customers", "/main/orders"]
+    assert shop.schema("/main/orders").names == ["id", "customer_id", "amount"]
+    assert sum(batch.num_rows for batch in shop.scan("/main/orders")) == 3
+    if isinstance(shop, SQLiteDatabaseFileSystem):
+        # Only the native backends have a records view; its rows are the relation's.
+        assert shop.describe("/main/orders/records").facets == {Facet.CHILDREN, Facet.TABLE}
+        assert sum(batch.num_rows for batch in shop.scan("/main/orders/records")) == 3
+    assert shop.metadata("/main/orders/columns/id")["primary_key"] is True
+
+
+def test_a_data_view_renders_relations_and_their_metadata(shop):
+    view = DataViewFileSystem(fs=shop)
+    assert view.ls("main", detail=False) == [
+        f"main/{relation}{suffix}"
+        for relation in ("big_orders", "customers", "orders")
+        for suffix in ("", ".metadata.json", ".parquet", ".schema.json")
+    ]
+    assert pq.read_table(io.BytesIO(view.cat_file("main/big_orders.parquet"))).column("id").to_pylist() == [1, 2]
+    columns = json.loads(view.cat_file("main/orders/columns.json"))
+    assert [(column["name"], column["primary_key"]) for column in columns] == [("id", True), ("customer_id", False), ("amount", False)]
+    assert [index["name"] for index in json.loads(view.cat_file("main/orders/indexes.json"))] == ["orders_customer"]
+    assert {constraint["kind"] for constraint in json.loads(view.cat_file("main/orders/constraints.json"))} >= {"pk"}
+    assert json.loads(view.cat_file("main/orders.metadata.json"))["kind"] == "table"
+    assert view.cat_file("main/big_orders/definition.sql").startswith(b"CREATE VIEW big_orders")
+    assert view.resolve("main/orders.parquet").node.path == "/main/orders"

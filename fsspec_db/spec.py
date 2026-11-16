@@ -8,6 +8,8 @@ from typing import Any
 
 import fsspec
 
+from .describe import DatabaseDataSource
+
 _rust = import_module(".fsspec_db", __package__)
 
 SchemaInfo = _rust.SchemaInfo
@@ -263,7 +265,7 @@ class AbstractDatabase(abc.ABC):
         raise NotImplementedError
 
 
-class AbstractDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class AbstractDatabaseFileSystem(DatabaseDataSource, DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """fsspec filesystem adapter for an :class:`AbstractDatabase` implementation."""
 
     protocol = "db"
