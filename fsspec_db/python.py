@@ -14,6 +14,7 @@ import pyarrow.json as pajson
 import pyarrow.parquet as pq
 from pyarrow import ipc
 
+from .describe import DatabaseDataSource
 from .spec import AbstractDatabase, DatabaseDdlMixin, DeferredDatabaseFile, IntrospectionCacheMixin, _validate_open_mode
 
 _FORMATS = {"arrow", "parquet", "csv", "jsonl", "sql"}
@@ -56,7 +57,7 @@ class _WriteBuffer(io.BytesIO):
         super().close()
 
 
-class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class PyDatabaseFileSystem(DatabaseDataSource, DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """Direct Python filesystem adapter for an :class:`AbstractDatabase`.
 
     Unlike ``AbstractDatabaseFileSystem``, this class does not call the Rust bridge. It is
@@ -82,12 +83,12 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
             entries = [_relation_info(parsed.schema, info) for info in self.db.list_relations(parsed.schema)]
         elif parsed.kind == "relation":
             relation = self.db.relation_info(parsed.schema, parsed.relation)
-            entries = [_directory(f"/{parsed.schema}/{parsed.relation}/{facet}") for facet in ("columns", "indexes", "constraints")]
+            entries = [_directory(f"/{parsed.schema}/{parsed.relation}/{facet}", kind=facet) for facet in ("columns", "indexes", "constraints")]
             if relation.kind == "view":
                 entries.extend(
                     [
-                        _directory(f"/{parsed.schema}/{parsed.relation}/depends_on"),
-                        _file(f"/{parsed.schema}/{parsed.relation}/definition.sql", 0),
+                        _directory(f"/{parsed.schema}/{parsed.relation}/depends_on", kind="depends_on"),
+                        _file(f"/{parsed.schema}/{parsed.relation}/definition.sql", 0, format="sql", kind="view_definition"),
                     ]
                 )
         elif parsed.kind == "facet":
@@ -109,7 +110,7 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
             return _relation_info(parsed.schema, self.db.relation_info(parsed.schema, parsed.relation))
         if parsed.kind == "facet" and parsed.item is None:
             self.db.relation_info(parsed.schema, parsed.relation)
-            return _directory(f"/{parsed.schema}/{parsed.relation}/{parsed.format}")
+            return _directory(f"/{parsed.schema}/{parsed.relation}/{parsed.format}", kind=parsed.format)
         if parsed.kind == "facet":
             entries = {entry["name"].rsplit("/", 1)[-1]: entry for entry in self._facet_entries(parsed)}
             try:
@@ -118,7 +119,7 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
                 raise FileNotFoundError(path) from exc
         if parsed.kind == "definition":
             definition = self.db.view_definition(parsed.schema, parsed.relation)
-            return _file(f"/{parsed.schema}/{parsed.relation}/definition.sql", len(definition.encode()))
+            return _file(f"/{parsed.schema}/{parsed.relation}/definition.sql", len(definition.encode()), format="sql", kind="view_definition")
         if parsed.kind == "data":
             relation = self.db.relation_info(parsed.schema, parsed.relation)
             return _file(
@@ -233,7 +234,7 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
             ]
         if parsed.format == "indexes":
             return [
-                _file(f"{base}/{info.name}", 0, columns=info.columns, unique=info.unique, method=info.method)
+                _file(f"{base}/{info.name}", 0, kind="index", columns=info.columns, unique=info.unique, method=info.method)
                 for info in self.db.list_indexes(parsed.schema, parsed.relation)
             ]
         if parsed.format == "constraints":
@@ -250,7 +251,7 @@ class PyDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.Abs
             ]
         definition = self.db.view_definition(parsed.schema, parsed.relation)
         names = _view_dependencies(definition)
-        return [_file(f"{base}/{name}", 0, target=f"/{parsed.schema}/{name}") for name in names]
+        return [_file(f"{base}/{name}", 0, kind="depends_on", target=f"/{parsed.schema}/{name}") for name in names]
 
 
 def _parse_path(path: str) -> _Path:
@@ -336,7 +337,7 @@ def _file(name: str, size: int, **extra: Any) -> dict[str, Any]:
 
 
 def _schema_info(info: Any) -> dict[str, Any]:
-    return _directory(f"/{info.name}", catalog=info.catalog, comment=info.comment)
+    return _directory(f"/{info.name}", kind="schema", catalog=info.catalog, comment=info.comment)
 
 
 def _relation_info(schema: str, info: Any) -> dict[str, Any]:

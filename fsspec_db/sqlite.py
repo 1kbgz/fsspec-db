@@ -6,6 +6,7 @@ from typing import Any
 
 import fsspec
 
+from .describe import DatabaseDataSource
 from .spec import (
     DatabaseDdlMixin,
     DeferredDatabaseFile,
@@ -19,7 +20,7 @@ _rust = import_module(".fsspec_db", __package__)
 _SQLITE_SUFFIXES = (".db", ".sqlite", ".sqlite3")
 
 
-class SQLiteDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class SQLiteDatabaseFileSystem(DatabaseDataSource, DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """SQLite-backed fsspec filesystem registered as ``db+sqlite``.
 
     Overwrite writes replace table contents; use append mode to preserve rows.

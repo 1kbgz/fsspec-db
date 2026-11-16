@@ -7,6 +7,7 @@ from urllib.parse import quote, urlencode
 
 import fsspec
 
+from .describe import DatabaseDataSource
 from .spec import (
     DatabaseDdlMixin,
     DeferredDatabaseFile,
@@ -21,7 +22,7 @@ _rust = import_module(".fsspec_db", __package__)
 _URL_PREFIXES = {"db+mysql://": "mysql://"}
 
 
-class MySQLDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class MySQLDatabaseFileSystem(DatabaseDataSource, DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """MySQL-backed fsspec filesystem registered as ``db+mysql``."""
 
     protocol = ("db+mysql",)

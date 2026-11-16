@@ -7,6 +7,7 @@ from urllib.parse import quote, urlencode
 
 import fsspec
 
+from .describe import DatabaseDataSource
 from .spec import (
     DatabaseDdlMixin,
     DeferredDatabaseFile,
@@ -21,7 +22,7 @@ _rust = import_module(".fsspec_db", __package__)
 _URL_PREFIXES = {"db+postgresql://": "postgresql://", "db+postgres://": "postgres://"}
 
 
-class PostgresDatabaseFileSystem(DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
+class PostgresDatabaseFileSystem(DatabaseDataSource, DatabaseDdlMixin, IntrospectionCacheMixin, fsspec.AbstractFileSystem):
     """PostgreSQL-backed fsspec filesystem registered as ``db+postgresql``."""
 
     protocol = ("db+postgresql", "db+postgres")
