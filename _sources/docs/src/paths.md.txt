@@ -197,6 +197,27 @@ For SQLite, the database ends at the first segment ending in `.db`, `.sqlite`, o
 belongs to the connection when the URL has no path inside the database, and to the
 path otherwise.
 
+## Data views
+
+Every fsspec-db filesystem is an fsspec-data `DataSource`, so
+`fsspec_data.DataViewFileSystem` can render a database as files: each relation as
+`orders.parquet` (or another format), its schema as `orders.schema.json`, its metadata as
+`orders.metadata.json`, and folders such as `orders/columns.json` with one row per column.
+Each path's `kind` decides what it offers:
+
+| `kind`                                            | Offers                           |
+| ------------------------------------------------- | -------------------------------- |
+| `table`, `view`                                   | children, rows, and metadata     |
+| `records`                                         | children and the relation's rows |
+| `columns`, `indexes`, `constraints`, `depends_on` | children                         |
+| `view_definition`, `record`                       | raw bytes                        |
+| `column`, `index`, `pk`, `fk`, other files        | metadata                         |
+| `schema`, the root                                | children and metadata            |
+
+Rows are read through the relation's `.arrow` encoding. Metadata is `info()` without
+`name`, `type`, `size`, and `size_known`. The encoded paths such as `orders.parquet` are not
+listed, so a view shows each relation once.
+
 ## DDL and cache controls
 
 `allow_ddl=False` is the default. Guarded `mkdir`, `rm_file`, and `mv` raise

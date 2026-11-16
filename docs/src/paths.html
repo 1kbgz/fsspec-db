@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Paths and metadata &#8212; fsspec-db v0.4.1</title>
+    <title>Paths and metadata &#8212; fsspec-db v0.5.0</title>
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../_static/fuma.css?v=ca04d621" />
     <link rel="stylesheet" type="text/css" href="../../_static/fuma-code.css?v=a950e949" />
@@ -16,7 +16,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=6a604523" />
     <link rel="stylesheet" type="text/css" href="../../_static/fonts/fuma-fonts.css?v=c2892c73" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/custom.css?v=88c24c6a" />
-    <script src="../../_static/documentation_options.js?v=c87aa342"></script>
+    <script src="../../_static/documentation_options.js?v=1dd76d02"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -49,7 +49,7 @@
   <div class="fd-subnav-inner">
     <button type="button" class="fd-icon-button fd-sidebar-toggle" aria-controls="fd-sidebar" aria-expanded="false" aria-label="Toggle navigation" title="Toggle navigation">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="fd-icon "><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
-    </button><a class="fd-brand" href="../../index.html"><span class="fd-brand-name">fsspec-db v0.4.1</span>
+    </button><a class="fd-brand" href="../../index.html"><span class="fd-brand-name">fsspec-db v0.5.0</span>
 </a>
 
     <div class="fd-nav-actions">
@@ -64,7 +64,7 @@
 
 <aside id="fd-sidebar" aria-label="Documentation">
   <div class="fd-sidebar-header">
-    <div class="fd-sidebar-brand-row"><a class="fd-brand" href="../../index.html"><span class="fd-brand-name">fsspec-db v0.4.1</span>
+    <div class="fd-sidebar-brand-row"><a class="fd-brand" href="../../index.html"><span class="fd-brand-name">fsspec-db v0.5.0</span>
 </a>
       <button type="button" class="fd-icon-button fd-sidebar-collapse" aria-label="Collapse sidebar" title="Collapse sidebar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="fd-icon "><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></button>
     </div>
@@ -185,6 +185,9 @@
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#urls">URLs</a>
+  </li>
+  <li class="fd-toc-item" data-depth="1">
+    <a href="#data-views">Data views</a>
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#ddl-and-cache-controls">DDL and cache controls</a>
@@ -537,6 +540,44 @@ are available on the native SQLite, PostgreSQL, and MySQL backends.</p>
 belongs to the connection when the URL has no path inside the database, and to the
 path otherwise.</p>
 </section>
+<section id="data-views">
+<h2>Data views<a class="headerlink" href="#data-views" title="Link to this heading">¶</a></h2>
+<p>Every fsspec-db filesystem is an fsspec-data <code class="docutils literal notranslate"><span class="pre">DataSource</span></code>, so
+<code class="docutils literal notranslate"><span class="pre">fsspec_data.DataViewFileSystem</span></code> can render a database as files: each relation as
+<code class="docutils literal notranslate"><span class="pre">orders.parquet</span></code> (or another format), its schema as <code class="docutils literal notranslate"><span class="pre">orders.schema.json</span></code>, its metadata as
+<code class="docutils literal notranslate"><span class="pre">orders.metadata.json</span></code>, and folders such as <code class="docutils literal notranslate"><span class="pre">orders/columns.json</span></code> with one row per column.
+Each path’s <code class="docutils literal notranslate"><span class="pre">kind</span></code> decides what it offers:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p><code class="docutils literal notranslate"><span class="pre">kind</span></code></p></th>
+<th class="head"><p>Offers</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">table</span></code>, <code class="docutils literal notranslate"><span class="pre">view</span></code></p></td>
+<td><p>children, rows, and metadata</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">records</span></code></p></td>
+<td><p>children and the relation’s rows</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">columns</span></code>, <code class="docutils literal notranslate"><span class="pre">indexes</span></code>, <code class="docutils literal notranslate"><span class="pre">constraints</span></code>, <code class="docutils literal notranslate"><span class="pre">depends_on</span></code></p></td>
+<td><p>children</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">view_definition</span></code>, <code class="docutils literal notranslate"><span class="pre">record</span></code></p></td>
+<td><p>raw bytes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">column</span></code>, <code class="docutils literal notranslate"><span class="pre">index</span></code>, <code class="docutils literal notranslate"><span class="pre">pk</span></code>, <code class="docutils literal notranslate"><span class="pre">fk</span></code>, other files</p></td>
+<td><p>metadata</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">schema</span></code>, the root</p></td>
+<td><p>children and metadata</p></td>
+</tr>
+</tbody>
+</table>
+<p>Rows are read through the relation’s <code class="docutils literal notranslate"><span class="pre">.arrow</span></code> encoding. Metadata is <code class="docutils literal notranslate"><span class="pre">info()</span></code> without
+<code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">size</span></code>, and <code class="docutils literal notranslate"><span class="pre">size_known</span></code>. The encoded paths such as <code class="docutils literal notranslate"><span class="pre">orders.parquet</span></code> are not
+listed, so a view shows each relation once.</p>
+</section>
 <section id="ddl-and-cache-controls">
 <h2>DDL and cache controls<a class="headerlink" href="#ddl-and-cache-controls" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">allow_ddl=False</span></code> is the default. Guarded <code class="docutils literal notranslate"><span class="pre">mkdir</span></code>, <code class="docutils literal notranslate"><span class="pre">rm_file</span></code>, and <code class="docutils literal notranslate"><span class="pre">mv</span></code> raise
@@ -617,6 +658,9 @@ cache entries, even when a path is supplied. Listing cache options include
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#urls">URLs</a>
+  </li>
+  <li class="fd-toc-item" data-depth="1">
+    <a href="#data-views">Data views</a>
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#ddl-and-cache-controls">DDL and cache controls</a>
