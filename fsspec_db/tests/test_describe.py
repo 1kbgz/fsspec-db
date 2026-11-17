@@ -21,18 +21,25 @@ create view big_orders as select * from orders where amount > 8;
 
 
 @pytest.fixture(params=["native", "sqlalchemy"])
-def shop(request, tmp_path):
+def open_shop(request, tmp_path):
     database = tmp_path / "shop.db"
     connection = sqlite3.connect(database)
     connection.executescript(SHOP)
     connection.commit()
     connection.close()
-    if request.param == "native":
-        fs, _ = fsspec.core.url_to_fs(f"db+sqlite://{database}", skip_instance_cache=True)
-    else:
+
+    def open_shop(**options):
+        if request.param == "native":
+            return fsspec.core.url_to_fs(f"db+sqlite://{database}", skip_instance_cache=True, **options)[0]
         sqlalchemy = pytest.importorskip("sqlalchemy")
-        fs = SQLAlchemyDatabaseFileSystem(engine=sqlalchemy.create_engine(f"sqlite:///{database}"), skip_instance_cache=True)
-    return fs
+        return SQLAlchemyDatabaseFileSystem(engine=sqlalchemy.create_engine(f"sqlite:///{database}"), skip_instance_cache=True, **options)
+
+    return open_shop
+
+
+@pytest.fixture
+def shop(open_shop):
+    return open_shop()
 
 
 def test_database_filesystems_are_data_sources(shop):
@@ -93,3 +100,26 @@ def test_source_urls_reopen_the_same_database_and_path(tmp_path):
 def test_server_urls_name_the_database_without_its_password(dsn, path, url):
     protocol = "db+mysql" if dsn.startswith("mysql") else "db+postgresql"
     assert _server_url(protocol, dsn, path) == url
+
+
+def test_column_metadata_has_arrow_types_and_optional_exact_statistics(open_shop):
+    columns = {column["name"]: column for column in json.loads(DataViewFileSystem(fs=open_shop()).cat_file("main/orders/columns.json"))}
+    assert {name: column["arrow_type"] for name, column in columns.items()} == {"id": "int64", "customer_id": "int64", "amount": "double"}
+    assert "distinct_count" not in columns["amount"]
+
+    fs = open_shop(column_statistics="exact")
+    assert {key: fs.metadata("/main/orders/columns/customer_id")[key] for key in ("distinct_count", "null_count", "min", "max")} == {
+        "distinct_count": 2,
+        "null_count": 0,
+        "min": 1,
+        "max": 2,
+    }
+    assert fs.metadata("/main/orders/columns/amount")["max"] == 20.0
+    reads = []
+    query = fs.query
+    fs.query = lambda sql, params=None: reads.append(sql) or query(sql, params)
+    fs.metadata("/main/orders/columns/id")
+    assert reads == []
+    fs.invalidate_cache()
+    fs.metadata("/main/orders/columns/id")
+    assert len(reads) == 1

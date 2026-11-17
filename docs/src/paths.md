@@ -222,7 +222,11 @@ Each path's `kind` decides what it offers:
 | `schema`, the root                                | children and metadata            |
 
 Rows are read through the relation's `.arrow` encoding. Metadata is `info()` without
-`name`, `type`, `size`, and `size_known`. The encoded paths such as `orders.parquet` are not
+`name`, `type`, `size`, and `size_known`. Column metadata also has `arrow_type`, the column's type in
+the relation's Arrow schema. With the storage option `column_statistics="exact"`, it adds
+`distinct_count`, `null_count`, `min`, and `max`, computed by one aggregate query per
+relation that reads the whole table; schemas and statistics are cached until
+`invalidate_cache()`. The encoded paths such as `orders.parquet` are not
 listed, so a view shows each relation once.
 
 ## DDL and cache controls
