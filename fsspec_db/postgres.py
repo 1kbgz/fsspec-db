@@ -14,6 +14,7 @@ from .spec import (
     IntrospectionCacheMixin,
     _binary_mode,
     _copy_local_to_rust_file,
+    _server_url,
     _split_server_url,
     _validate_open_mode,
 )
@@ -55,6 +56,10 @@ class PostgresDatabaseFileSystem(DatabaseDataSource, DatabaseDdlMixin, Introspec
         self.dsn = source
         self.pool_options = pool_options
         self._rust = _rust.RustPostgresDatabaseFs(source, **pool_options)
+
+    def unstrip_protocol(self, name: str) -> str:
+        """The URL of ``name`` in this database, without the DSN's password."""
+        return _server_url("db+postgresql", self.dsn, name) or super().unstrip_protocol(name)
 
     def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[dict[str, Any]] | list[str]:
         return self._cached_ls(path, detail, self._rust.ls, kwargs.get("refresh", False))
