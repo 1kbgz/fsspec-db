@@ -582,6 +582,7 @@ window.runMermaid = runMermaid;</script>
     <span class="n">IntrospectionCacheMixin</span><span class="p">,</span>
     <span class="n">_binary_mode</span><span class="p">,</span>
     <span class="n">_copy_local_to_rust_file</span><span class="p">,</span>
+    <span class="n">_server_url</span><span class="p">,</span>
     <span class="n">_split_server_url</span><span class="p">,</span>
     <span class="n">_validate_open_mode</span><span class="p">,</span>
 <span class="p">)</span>
@@ -625,6 +626,13 @@ window.runMermaid = runMermaid;</script>
         <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span> <span class="o">=</span> <span class="n">source</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pool_options</span> <span class="o">=</span> <span class="n">pool_options</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_rust</span> <span class="o">=</span> <span class="n">_rust</span><span class="o">.</span><span class="n">RustMySqlDatabaseFs</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="o">**</span><span class="n">pool_options</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MySQLDatabaseFileSystem.unstrip_protocol">
+<a class="viewcode-back" href="../../docs/src/api.html#fsspec_db.MySQLDatabaseFileSystem.unstrip_protocol">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unstrip_protocol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""The URL of ``name`` in this database, without the DSN's password."""</span>
+        <span class="k">return</span> <span class="n">_server_url</span><span class="p">(</span><span class="s2">"db+mysql"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">unstrip_protocol</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="MySQLDatabaseFileSystem.ls">
 <a class="viewcode-back" href="../../docs/src/api.html#fsspec_db.MySQLDatabaseFileSystem.ls">[docs]</a>

@@ -539,6 +539,12 @@ are available on the native SQLite, PostgreSQL, and MySQL backends.</p>
 <code class="docutils literal notranslate"><span class="pre">.sqlite3</span></code>. For PostgreSQL and MySQL, it is the first path segment. A query string
 belongs to the connection when the URL has no path inside the database, and to the
 path otherwise.</p>
+<p><code class="docutils literal notranslate"><span class="pre">unstrip_protocol(path)</span></code> returns the URL of a path in the same form, so it reopens the same
+database and path: <code class="docutils literal notranslate"><span class="pre">db+sqlite:///data/app.db/main/kv</span></code> for SQLite, and
+<code class="docutils literal notranslate"><span class="pre">db+postgresql://user&#64;host:5432/app/public/kv</span></code> for PostgreSQL and MySQL. Server URLs leave
+out the password, so they are safe to show or store; pass credentials as storage options
+when reopening. A key=value DSN has no URL form, and DuckDB, ODBC, and SQLAlchemy URLs name
+only the database.</p>
 </section>
 <section id="data-views">
 <h2>Data views<a class="headerlink" href="#data-views" title="Link to this heading">¶</a></h2>

@@ -261,6 +261,9 @@
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.MySQLDatabaseFileSystem.put_file">MySQLDatabaseFileSystem.put_file()</a>
   </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.MySQLDatabaseFileSystem.unstrip_protocol">MySQLDatabaseFileSystem.unstrip_protocol()</a>
+  </li>
   <li class="fd-toc-item" data-depth="2">
     <a href="#fsspec_db.OdbcDatabase">OdbcDatabase</a>
   </li>
@@ -314,6 +317,9 @@
   </li>
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.PostgresDatabaseFileSystem.put_file">PostgresDatabaseFileSystem.put_file()</a>
+  </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.PostgresDatabaseFileSystem.unstrip_protocol">PostgresDatabaseFileSystem.unstrip_protocol()</a>
   </li>
   <li class="fd-toc-item" data-depth="2">
     <a href="#fsspec_db.PyDatabaseFileSystem">PyDatabaseFileSystem</a>
@@ -386,6 +392,9 @@
   </li>
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.SQLiteDatabaseFileSystem.put_file">SQLiteDatabaseFileSystem.put_file()</a>
+  </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.SQLiteDatabaseFileSystem.unstrip_protocol">SQLiteDatabaseFileSystem.unstrip_protocol()</a>
   </li>
   <li class="fd-toc-item" data-depth="2">
     <a href="#fsspec_db.linked_to_libfsspec">linked_to_libfsspec()</a>
@@ -498,6 +507,9 @@
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.sqlite.SQLiteDatabaseFileSystem.put_file">SQLiteDatabaseFileSystem.put_file()</a>
   </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.sqlite.SQLiteDatabaseFileSystem.unstrip_protocol">SQLiteDatabaseFileSystem.unstrip_protocol()</a>
+  </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#module-fsspec_db.postgres">PostgreSQL Backend</a>
   </li>
@@ -519,6 +531,9 @@
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.postgres.PostgresDatabaseFileSystem.put_file">PostgresDatabaseFileSystem.put_file()</a>
   </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.postgres.PostgresDatabaseFileSystem.unstrip_protocol">PostgresDatabaseFileSystem.unstrip_protocol()</a>
+  </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#module-fsspec_db.mysql">MySQL Backend</a>
   </li>
@@ -539,6 +554,9 @@
   </li>
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.mysql.MySQLDatabaseFileSystem.put_file">MySQLDatabaseFileSystem.put_file()</a>
+  </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.mysql.MySQLDatabaseFileSystem.unstrip_protocol">MySQLDatabaseFileSystem.unstrip_protocol()</a>
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#module-fsspec_db.duckdb">DuckDB Backend</a>
@@ -1016,6 +1034,12 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <dd><p>Copy single file to remote</p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.MySQLDatabaseFileSystem.unstrip_protocol">
+<span class="sig-name descname"><span class="pre">unstrip_protocol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/mysql.html#MySQLDatabaseFileSystem.unstrip_protocol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.MySQLDatabaseFileSystem.unstrip_protocol" title="Link to this definition">¶</a></dt>
+<dd><p>The URL of <code class="docutils literal notranslate"><span class="pre">name</span></code> in this database, without the DSN’s password.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -1189,6 +1213,12 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <dt class="sig sig-object py" id="fsspec_db.PostgresDatabaseFileSystem.put_file">
 <span class="sig-name descname"><span class="pre">put_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'overwrite'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/postgres.html#PostgresDatabaseFileSystem.put_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.PostgresDatabaseFileSystem.put_file" title="Link to this definition">¶</a></dt>
 <dd><p>Copy single file to remote</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.PostgresDatabaseFileSystem.unstrip_protocol">
+<span class="sig-name descname"><span class="pre">unstrip_protocol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/postgres.html#PostgresDatabaseFileSystem.unstrip_protocol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.PostgresDatabaseFileSystem.unstrip_protocol" title="Link to this definition">¶</a></dt>
+<dd><p>The URL of <code class="docutils literal notranslate"><span class="pre">name</span></code> in this database, without the DSN’s password.</p>
 </dd></dl>
 
 </dd></dl>
@@ -1469,6 +1499,13 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <dt class="sig sig-object py" id="fsspec_db.SQLiteDatabaseFileSystem.put_file">
 <span class="sig-name descname"><span class="pre">put_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'overwrite'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlite.html#SQLiteDatabaseFileSystem.put_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLiteDatabaseFileSystem.put_file" title="Link to this definition">¶</a></dt>
 <dd><p>Copy single file to remote</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.SQLiteDatabaseFileSystem.unstrip_protocol">
+<span class="sig-name descname"><span class="pre">unstrip_protocol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlite.html#SQLiteDatabaseFileSystem.unstrip_protocol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.SQLiteDatabaseFileSystem.unstrip_protocol" title="Link to this definition">¶</a></dt>
+<dd><p>The URL of <code class="docutils literal notranslate"><span class="pre">name</span></code> in this database, such as <code class="docutils literal notranslate"><span class="pre">db+sqlite:///data/app.db/main/kv</span></code>.
+It reopens the same path when the database name ends in a SQLite suffix.</p>
 </dd></dl>
 
 </dd></dl>
@@ -1896,6 +1933,13 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <dd><p>Copy single file to remote</p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.sqlite.SQLiteDatabaseFileSystem.unstrip_protocol">
+<span class="sig-name descname"><span class="pre">unstrip_protocol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/sqlite.html#SQLiteDatabaseFileSystem.unstrip_protocol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.sqlite.SQLiteDatabaseFileSystem.unstrip_protocol" title="Link to this definition">¶</a></dt>
+<dd><p>The URL of <code class="docutils literal notranslate"><span class="pre">name</span></code> in this database, such as <code class="docutils literal notranslate"><span class="pre">db+sqlite:///data/app.db/main/kv</span></code>.
+It reopens the same path when the database name ends in a SQLite suffix.</p>
+</dd></dl>
+
 </dd></dl>
 
 </section>
@@ -2001,6 +2045,12 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <dd><p>Copy single file to remote</p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.postgres.PostgresDatabaseFileSystem.unstrip_protocol">
+<span class="sig-name descname"><span class="pre">unstrip_protocol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/postgres.html#PostgresDatabaseFileSystem.unstrip_protocol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.postgres.PostgresDatabaseFileSystem.unstrip_protocol" title="Link to this definition">¶</a></dt>
+<dd><p>The URL of <code class="docutils literal notranslate"><span class="pre">name</span></code> in this database, without the DSN’s password.</p>
+</dd></dl>
+
 </dd></dl>
 
 </section>
@@ -2104,6 +2154,12 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
 <dt class="sig sig-object py" id="fsspec_db.mysql.MySQLDatabaseFileSystem.put_file">
 <span class="sig-name descname"><span class="pre">put_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'overwrite'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/mysql.html#MySQLDatabaseFileSystem.put_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.mysql.MySQLDatabaseFileSystem.put_file" title="Link to this definition">¶</a></dt>
 <dd><p>Copy single file to remote</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fsspec_db.mysql.MySQLDatabaseFileSystem.unstrip_protocol">
+<span class="sig-name descname"><span class="pre">unstrip_protocol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="../../_modules/fsspec_db/mysql.html#MySQLDatabaseFileSystem.unstrip_protocol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fsspec_db.mysql.MySQLDatabaseFileSystem.unstrip_protocol" title="Link to this definition">¶</a></dt>
+<dd><p>The URL of <code class="docutils literal notranslate"><span class="pre">name</span></code> in this database, without the DSN’s password.</p>
 </dd></dl>
 
 </dd></dl>
@@ -2480,6 +2536,9 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.MySQLDatabaseFileSystem.put_file">MySQLDatabaseFileSystem.put_file()</a>
   </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.MySQLDatabaseFileSystem.unstrip_protocol">MySQLDatabaseFileSystem.unstrip_protocol()</a>
+  </li>
   <li class="fd-toc-item" data-depth="2">
     <a href="#fsspec_db.OdbcDatabase">OdbcDatabase</a>
   </li>
@@ -2533,6 +2592,9 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
   </li>
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.PostgresDatabaseFileSystem.put_file">PostgresDatabaseFileSystem.put_file()</a>
+  </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.PostgresDatabaseFileSystem.unstrip_protocol">PostgresDatabaseFileSystem.unstrip_protocol()</a>
   </li>
   <li class="fd-toc-item" data-depth="2">
     <a href="#fsspec_db.PyDatabaseFileSystem">PyDatabaseFileSystem</a>
@@ -2605,6 +2667,9 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
   </li>
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.SQLiteDatabaseFileSystem.put_file">SQLiteDatabaseFileSystem.put_file()</a>
+  </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.SQLiteDatabaseFileSystem.unstrip_protocol">SQLiteDatabaseFileSystem.unstrip_protocol()</a>
   </li>
   <li class="fd-toc-item" data-depth="2">
     <a href="#fsspec_db.linked_to_libfsspec">linked_to_libfsspec()</a>
@@ -2717,6 +2782,9 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.sqlite.SQLiteDatabaseFileSystem.put_file">SQLiteDatabaseFileSystem.put_file()</a>
   </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.sqlite.SQLiteDatabaseFileSystem.unstrip_protocol">SQLiteDatabaseFileSystem.unstrip_protocol()</a>
+  </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#module-fsspec_db.postgres">PostgreSQL Backend</a>
   </li>
@@ -2738,6 +2806,9 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.postgres.PostgresDatabaseFileSystem.put_file">PostgresDatabaseFileSystem.put_file()</a>
   </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.postgres.PostgresDatabaseFileSystem.unstrip_protocol">PostgresDatabaseFileSystem.unstrip_protocol()</a>
+  </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#module-fsspec_db.mysql">MySQL Backend</a>
   </li>
@@ -2758,6 +2829,9 @@ the result of <code class="docutils literal notranslate"><span class="pre">info(
   </li>
   <li class="fd-toc-item" data-depth="3">
     <a href="#fsspec_db.mysql.MySQLDatabaseFileSystem.put_file">MySQLDatabaseFileSystem.put_file()</a>
+  </li>
+  <li class="fd-toc-item" data-depth="3">
+    <a href="#fsspec_db.mysql.MySQLDatabaseFileSystem.unstrip_protocol">MySQLDatabaseFileSystem.unstrip_protocol()</a>
   </li>
   <li class="fd-toc-item" data-depth="1">
     <a href="#module-fsspec_db.duckdb">DuckDB Backend</a>
