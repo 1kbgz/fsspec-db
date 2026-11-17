@@ -85,6 +85,11 @@ def test_backend_round_trips(case):
         id_col = fs.info(f"/{schema}/{table}/columns/id")
         assert id_col["primary_key"] is True
 
+        # column statistics through each dialect's quoting
+        stats = fsspec.filesystem(case["protocol"], dsn=url, column_statistics="exact", skip_instance_cache=True)
+        name_col = stats.metadata(f"/{schema}/{table}/columns/name")
+        assert (name_col["distinct_count"], name_col["null_count"], name_col["min"], name_col["max"]) == (2, 0, "ada", "grace")
+
         # read via query
         queried = fs.query(f"SELECT name FROM {schema}.{table} ORDER BY id")
         assert queried.column("name").to_pylist() == ["ada", "grace"]
