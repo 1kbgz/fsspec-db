@@ -95,7 +95,8 @@ class DatabaseDataSource(DataSource):
                     keys,
                     (
                         f"COUNT(DISTINCT {quote(name)})",
-                        f"SUM(CASE WHEN {quote(name)} IS NULL THEN 1 ELSE 0 END)",
+                        # COUNT is an integer in every dialect; MySQL sums to DECIMAL.
+                        f"COUNT(*) - COUNT({quote(name)})",
                         f"MIN({quote(name)})",
                         f"MAX({quote(name)})",
                     ),
