@@ -5,6 +5,7 @@ import io
 import os
 from importlib import import_module
 from typing import Any
+from urllib.parse import urlsplit
 
 import fsspec
 
@@ -151,6 +152,23 @@ def _split_server_url(path: str, prefixes: dict[str, str]) -> tuple[str, str]:
     if not inner:
         return dsn + mark + query, "/"
     return dsn, f"/{inner}{mark}{query}"
+
+
+def _server_url(protocol: str, dsn: str, path: str) -> str | None:
+    """``db+{driver}://netloc/database/path`` for a URL-form DSN, without its password, or
+    ``None`` for a key=value DSN. The URL names the database as ``url_to_fs`` parses it."""
+    parsed = urlsplit(dsn)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    netloc = parsed.hostname or ""
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    if parsed.username:
+        netloc = f"{parsed.username}@{netloc}"
+    database = parsed.path.strip("/")
+    inner = path.strip("/")
+    tail = "/".join(part for part in (database, inner) if part)
+    return f"{protocol}://{netloc}/{tail}" if tail else f"{protocol}://{netloc}"
 
 
 def _is_records_path(path: str) -> bool:

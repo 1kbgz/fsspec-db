@@ -55,6 +55,12 @@ class SQLiteDatabaseFileSystem(DatabaseDataSource, DatabaseDdlMixin, Introspecti
         self.database = source
         self._rust = _rust.RustSqliteDatabaseFs(source)
 
+    def unstrip_protocol(self, name: str) -> str:
+        """The URL of ``name`` in this database, such as ``db+sqlite:///data/app.db/main/kv``.
+        It reopens the same path when the database name ends in a SQLite suffix."""
+        inner = name.strip("/")
+        return f"db+sqlite://{self.database}/{inner}" if inner else f"db+sqlite://{self.database}"
+
     def ls(self, path: str, detail: bool = True, **kwargs: Any) -> list[dict[str, Any]] | list[str]:
         return self._cached_ls(path, detail, self._rust.ls, kwargs.get("refresh", False))
 

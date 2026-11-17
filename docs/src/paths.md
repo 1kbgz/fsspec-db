@@ -197,6 +197,13 @@ For SQLite, the database ends at the first segment ending in `.db`, `.sqlite`, o
 belongs to the connection when the URL has no path inside the database, and to the
 path otherwise.
 
+`unstrip_protocol(path)` returns the URL of a path in the same form, so it reopens the same
+database and path: `db+sqlite:///data/app.db/main/kv` for SQLite, and
+`db+postgresql://user@host:5432/app/public/kv` for PostgreSQL and MySQL. Server URLs leave
+out the password, so they are safe to show or store; pass credentials as storage options
+when reopening. A key=value DSN has no URL form, and DuckDB, ODBC, and SQLAlchemy URLs name
+only the database.
+
 ## Data views
 
 Every fsspec-db filesystem is an fsspec-data `DataSource`, so

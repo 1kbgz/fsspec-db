@@ -8,6 +8,7 @@ import pytest
 from fsspec_data import DataViewFileSystem, Facet
 
 from fsspec_db import SQLAlchemyDatabaseFileSystem, SQLiteDatabaseFileSystem
+from fsspec_db.spec import _server_url
 
 SHOP = """
 create table customers(id integer primary key, name text not null);
@@ -65,3 +66,30 @@ def test_a_data_view_renders_relations_and_their_metadata(shop):
     assert json.loads(view.cat_file("main/orders.metadata.json"))["kind"] == "table"
     assert view.cat_file("main/big_orders/definition.sql").startswith(b"CREATE VIEW big_orders")
     assert view.resolve("main/orders.parquet").node.path == "/main/orders"
+
+
+def test_source_urls_reopen_the_same_database_and_path(tmp_path):
+    database = tmp_path / "shop.db"
+    sqlite3.connect(database).executescript(SHOP)
+    fs = fsspec.filesystem("db+sqlite", database=str(database), skip_instance_cache=True)
+
+    url = fs.unstrip_protocol("/main/orders")
+    assert url == f"db+sqlite://{database}/main/orders"
+    reopened, path = fsspec.core.url_to_fs(url, skip_instance_cache=True)
+    assert (reopened.database, path) == (str(database), "/main/orders")
+    assert fs.unstrip_protocol("/") == f"db+sqlite://{database}"
+    assert DataViewFileSystem(fs=fs).resolve("main/orders.parquet").url == url
+
+
+@pytest.mark.parametrize(
+    ("dsn", "path", "url"),
+    [
+        ("postgresql://ada:secret@db.example:5432/app", "/public/kv", "db+postgresql://ada@db.example:5432/app/public/kv"),
+        ("postgresql://db.example/app", "/", "db+postgresql://db.example/app"),
+        ("mysql://root@127.0.0.1:3306/app", "app/kv", "db+mysql://root@127.0.0.1:3306/app/app/kv"),
+        ("host=db.example dbname=app", "/public/kv", None),
+    ],
+)
+def test_server_urls_name_the_database_without_its_password(dsn, path, url):
+    protocol = "db+mysql" if dsn.startswith("mysql") else "db+postgresql"
+    assert _server_url(protocol, dsn, path) == url
