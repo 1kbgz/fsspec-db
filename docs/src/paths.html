@@ -581,7 +581,11 @@ Each path’s <code class="docutils literal notranslate"><span class="pre">kind<
 </tbody>
 </table>
 <p>Rows are read through the relation’s <code class="docutils literal notranslate"><span class="pre">.arrow</span></code> encoding. Metadata is <code class="docutils literal notranslate"><span class="pre">info()</span></code> without
-<code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">size</span></code>, and <code class="docutils literal notranslate"><span class="pre">size_known</span></code>. The encoded paths such as <code class="docutils literal notranslate"><span class="pre">orders.parquet</span></code> are not
+<code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">size</span></code>, and <code class="docutils literal notranslate"><span class="pre">size_known</span></code>. Column metadata also has <code class="docutils literal notranslate"><span class="pre">arrow_type</span></code>, the column’s type in
+the relation’s Arrow schema. With the storage option <code class="docutils literal notranslate"><span class="pre">column_statistics=&quot;exact&quot;</span></code>, it adds
+<code class="docutils literal notranslate"><span class="pre">distinct_count</span></code>, <code class="docutils literal notranslate"><span class="pre">null_count</span></code>, <code class="docutils literal notranslate"><span class="pre">min</span></code>, and <code class="docutils literal notranslate"><span class="pre">max</span></code>, computed by one aggregate query per
+relation that reads the whole table; schemas and statistics are cached until
+<code class="docutils literal notranslate"><span class="pre">invalidate_cache()</span></code>. The encoded paths such as <code class="docutils literal notranslate"><span class="pre">orders.parquet</span></code> are not
 listed, so a view shows each relation once.</p>
 </section>
 <section id="ddl-and-cache-controls">
