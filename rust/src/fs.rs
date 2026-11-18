@@ -941,6 +941,12 @@ fn select_options_from_query(
                 })?;
                 options.limit = Some(limit);
             }
+            "offset" => {
+                let offset = value.parse::<u64>().map_err(|_| {
+                    DbError::InvalidArgument(format!("invalid offset query parameter: {value}"))
+                })?;
+                options.offset = Some(offset);
+            }
             "where" => {
                 options.where_clause = Some(crate::sql::validate_predicate(dialect, value)?);
             }

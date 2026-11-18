@@ -98,6 +98,11 @@ def test_backend_round_trips(case):
         with ipc.open_stream(fs.cat_file(f"/{schema}/{table}.arrow?columns=name&limit=1")) as reader:
             assert reader.read_all().num_rows == 1
 
+        # selected scans: offset alone, and offset with a limit, in each dialect's SQL
+        assert fs.scan_selected(f"/{schema}/{table}", columns=["name"], row_offset=1).read_all().num_rows == 1
+        page = fs.scan_selected(f"/{schema}/{table}", columns=["score", "name"], row_offset=1, row_limit=1).read_all()
+        assert page.schema.names == ["score", "name"] and page.num_rows == 1
+
         # where= predicate pushdown (validated/canonicalized via sqlparser)
         with ipc.open_stream(fs.cat_file(f"/{schema}/{table}.arrow?where=score > 2")) as reader:
             assert reader.read_all().column("name").to_pylist() == ["grace"]

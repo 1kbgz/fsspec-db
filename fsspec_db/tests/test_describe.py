@@ -123,3 +123,44 @@ def test_column_metadata_has_arrow_types_and_optional_exact_statistics(open_shop
     fs.invalidate_cache()
     fs.metadata("/main/orders/columns/id")
     assert len(reads) == 1
+
+
+def test_selected_scans_reach_the_database(open_shop, monkeypatch):
+    shop = open_shop()
+    opened = []
+    open_file = type(shop).open
+
+    def recording_open(self, path, *args, **kwargs):
+        opened.append(path)
+        return open_file(self, path, *args, **kwargs)
+
+    monkeypatch.setattr(type(shop), "open", recording_open)
+
+    selected = shop.scan_selected("/main/orders", columns=["amount", "id"], row_offset=1, row_limit=1).read_all()
+    assert selected.to_pylist() == [{"amount": 20.0, "id": 2}]
+    assert opened[-1] == "/main/orders.arrow?columns=amount%2Cid&offset=1&limit=1"
+
+    # The native backends also read a records directory as its relation.
+    relation = "/main/orders/records" if isinstance(shop, SQLiteDatabaseFileSystem) else "/main/orders"
+    duplicated = shop.scan_columns(relation, ["id", "amount", "id"]).read_all()
+    assert duplicated.schema.names == ["id", "amount", "id"]
+    assert duplicated.column(0).to_pylist() == duplicated.column(2).to_pylist() == [1, 2, 3]
+    assert opened[-1] == "/main/orders.arrow?columns=id%2Camount"
+
+    assert shop.scan("/main/orders", row_limit=2).read_all().num_rows == 2
+    assert opened[-1] == "/main/orders.arrow?limit=2"
+    assert shop.scan_selected("/main/orders").read_all().num_rows == 3
+    assert opened[-1] == "/main/orders.arrow"
+    with pytest.raises(ValueError, match="row_offset"):
+        shop.scan_selected("/main/orders", row_offset=-1)
+
+
+def test_columns_the_query_cannot_name_are_projected_locally(tmp_path):
+    database = tmp_path / "odd.db"
+    with sqlite3.connect(database) as connection:
+        connection.execute('create table odd(id integer primary key, "a,b" integer)')
+        connection.execute("insert into odd values (1, 10), (2, 20)")
+    fs = fsspec.core.url_to_fs(f"db+sqlite://{database}", skip_instance_cache=True)[0]
+
+    table = fs.scan_columns("/main/odd", ["a,b", "id"]).read_all()
+    assert table.to_pylist() == [{"a,b": 10, "id": 1}, {"a,b": 20, "id": 2}]

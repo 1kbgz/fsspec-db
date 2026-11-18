@@ -3,7 +3,9 @@ and metadata as files."""
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Sequence
 from typing import Any, BinaryIO
+from urllib.parse import urlencode
 
 import pyarrow as pa
 from fsspec_data import DataSource, Facet, Node
@@ -57,8 +59,40 @@ class DatabaseDataSource(DataSource):
         row_limit: int | None = None,
         byte_limit: int | None = None,
     ) -> pa.RecordBatchReader:
-        del batch_size, row_limit, byte_limit
-        return ipc.open_stream(self.open(f"{_relation(self, path)}.arrow", "rb"))
+        """Rows of a relation. ``row_limit`` becomes ``LIMIT``; ``byte_limit`` is not applied."""
+        del batch_size, byte_limit
+        return self._select(path, None, 0, row_limit)
+
+    def scan_columns(
+        self,
+        path: str,
+        columns: Sequence[str],
+        *,
+        batch_size: int = 1024,
+        row_limit: int | None = None,
+        byte_limit: int | None = None,
+    ) -> pa.RecordBatchReader:
+        """The named columns of a relation in the requested order, read with ``columns=``."""
+        del batch_size, byte_limit
+        return self._select(path, columns, 0, row_limit)
+
+    def scan_selected(
+        self,
+        path: str,
+        *,
+        columns: Sequence[str] | None = None,
+        row_offset: int = 0,
+        batch_size: int = 1024,
+        row_limit: int | None = None,
+        byte_limit: int | None = None,
+    ) -> pa.RecordBatchReader:
+        """Selected columns of a relation after skipping ``row_offset`` rows, read with
+        ``columns=``, ``offset=`` and ``limit=``. Without an ``ORDER BY``, which rows an offset
+        skips is up to the database."""
+        del batch_size, byte_limit
+        if row_offset < 0:
+            raise ValueError("row_offset must be nonnegative")
+        return self._select(path, columns, row_offset, row_limit)
 
     def open_raw(self, path: str) -> BinaryIO:
         return self.open(path, "rb")
@@ -72,6 +106,28 @@ class DatabaseDataSource(DataSource):
             if self.storage_options.get("column_statistics") == "exact":
                 metadata.update(self._column_statistics(relation)[column])
         return metadata
+
+    def _select(self, path: str, columns: Sequence[str] | None, offset: int, limit: int | None) -> pa.RecordBatchReader:
+        """Reads a relation's ``.arrow`` encoding with the selection in its query. Columns the
+        query cannot name, duplicates and names containing commas, are read once and copied
+        into place."""
+        relation = _relation(self, path)
+        query: dict[str, Any] = {}
+        if columns is not None:
+            columns = list(columns)
+            pushed = list(dict.fromkeys(columns))
+            if all("," not in name for name in pushed):
+                query["columns"] = ",".join(pushed)
+        if offset:
+            query["offset"] = offset
+        if limit is not None:
+            query["limit"] = limit
+        url = f"{relation}.arrow?{urlencode(query)}" if query else f"{relation}.arrow"
+        reader = ipc.open_stream(self.open(url, "rb"))
+        if columns is None or reader.schema.names == columns:
+            return reader
+        schema = pa.schema([reader.schema.field(name) for name in columns])
+        return pa.RecordBatchReader.from_batches(schema, _project(reader, columns, schema))
 
     def invalidate_cache(self, path: str | None = None) -> None:
         _cache(self, "schemas").clear()
@@ -111,6 +167,11 @@ class DatabaseDataSource(DataSource):
                 for index, name in enumerate(columns)
             }
         return cache[relation]
+
+
+def _project(reader: pa.RecordBatchReader, columns: list[str], schema: pa.Schema) -> Iterator[pa.RecordBatch]:
+    for batch in reader:
+        yield pa.RecordBatch.from_arrays([batch.column(name) for name in columns], schema=schema)
 
 
 def _node(info: dict[str, Any]) -> Node:
