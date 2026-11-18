@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "fsspec_db"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "arrow",
  "csv-core",
