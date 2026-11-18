@@ -13,6 +13,8 @@ use crate::{DbError, Result};
 pub struct SelectOptions {
     pub columns: Vec<String>,
     pub limit: Option<u64>,
+    /// Rows to skip before `limit` applies.
+    pub offset: Option<u64>,
     /// A pre-validated, canonicalized boolean predicate (see [`validate_predicate`]).
     pub where_clause: Option<String>,
 }
@@ -116,8 +118,16 @@ pub fn select_sql(
     if let Some(predicate) = &options.where_clause {
         sql.push_str(&format!(" WHERE {predicate}"));
     }
-    if let Some(limit) = options.limit {
-        sql.push_str(&format!(" LIMIT {limit}"));
+    // SQLite and MySQL accept OFFSET only after a LIMIT, so an offset alone gets the largest one.
+    let offset = options.offset.filter(|offset| *offset > 0);
+    match (options.limit, offset, dialect) {
+        (Some(limit), _, _) => sql.push_str(&format!(" LIMIT {limit}")),
+        (None, Some(_), Dialect::Sqlite) => sql.push_str(" LIMIT -1"),
+        (None, Some(_), Dialect::MySql) => sql.push_str(&format!(" LIMIT {}", u64::MAX)),
+        (None, _, _) => {}
+    }
+    if let Some(offset) = offset {
+        sql.push_str(&format!(" OFFSET {offset}"));
     }
     Ok(sql)
 }
@@ -207,7 +217,7 @@ mod tests {
             &SelectOptions {
                 columns: vec!["id".to_string(), "name".to_string()],
                 limit: Some(5),
-                where_clause: None,
+                ..SelectOptions::default()
             },
         )
         .unwrap();
@@ -215,6 +225,33 @@ mod tests {
             sql,
             "SELECT \"id\", \"name\" FROM \"main\".\"users\" LIMIT 5"
         );
+    }
+
+    #[test]
+    fn builds_select_with_offset() {
+        let sql = |dialect, limit| {
+            select_sql(
+                &dialect,
+                "main",
+                "users",
+                &SelectOptions {
+                    limit,
+                    offset: Some(20),
+                    ..SelectOptions::default()
+                },
+            )
+            .unwrap()
+        };
+        assert_eq!(
+            sql(Dialect::Sqlite, Some(10)),
+            "SELECT * FROM \"main\".\"users\" LIMIT 10 OFFSET 20"
+        );
+        assert_eq!(
+            sql(Dialect::Sqlite, None),
+            "SELECT * FROM \"main\".\"users\" LIMIT -1 OFFSET 20"
+        );
+        assert!(sql(Dialect::MySql, None).ends_with(" LIMIT 18446744073709551615 OFFSET 20"));
+        assert!(sql(Dialect::Postgres, None).ends_with("\"users\" OFFSET 20"));
     }
 
     #[test]
@@ -227,6 +264,7 @@ mod tests {
                 columns: Vec::new(),
                 limit: Some(10),
                 where_clause: Some(validate_predicate(&Dialect::Sqlite, "score > 1").unwrap()),
+                ..SelectOptions::default()
             },
         )
         .unwrap();

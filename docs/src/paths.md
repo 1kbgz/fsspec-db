@@ -221,6 +221,14 @@ Each path's `kind` decides what it offers:
 | `column`, `index`, `pk`, `fk`, other files        | metadata                         |
 | `schema`, the root                                | children and metadata            |
 
+Rows are read through the relation's `.arrow` file. `scan(path, row_limit=n)` adds
+`limit=n`, and `scan_columns(path, columns)` and
+`scan_selected(path, columns=, row_offset=, row_limit=)` add `columns=`, `offset=`, and
+`limit=`, so the database returns only the selected rows and columns. Without an `ORDER BY`,
+the database decides which rows an offset skips. Column lists the query cannot name, with
+duplicates or with commas in a name, are read once and arranged locally. `byte_limit` is not
+applied.
+
 Rows are read through the relation's `.arrow` encoding. Metadata is `info()` without
 `name`, `type`, `size`, and `size_known`. Column metadata also has `arrow_type`, the column's type in
 the relation's Arrow schema. With the storage option `column_statistics="exact"`, it adds
