@@ -580,6 +580,13 @@ Each path’s <code class="docutils literal notranslate"><span class="pre">kind<
 </tr>
 </tbody>
 </table>
+<p>Rows are read through the relation’s <code class="docutils literal notranslate"><span class="pre">.arrow</span></code> file. <code class="docutils literal notranslate"><span class="pre">scan(path,</span> <span class="pre">row_limit=n)</span></code> adds
+<code class="docutils literal notranslate"><span class="pre">limit=n</span></code>, and <code class="docutils literal notranslate"><span class="pre">scan_columns(path,</span> <span class="pre">columns)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">scan_selected(path,</span> <span class="pre">columns=,</span> <span class="pre">row_offset=,</span> <span class="pre">row_limit=)</span></code> add <code class="docutils literal notranslate"><span class="pre">columns=</span></code>, <code class="docutils literal notranslate"><span class="pre">offset=</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">limit=</span></code>, so the database returns only the selected rows and columns. Without an <code class="docutils literal notranslate"><span class="pre">ORDER</span> <span class="pre">BY</span></code>,
+the database decides which rows an offset skips. Column lists the query cannot name, with
+duplicates or with commas in a name, are read once and arranged locally. <code class="docutils literal notranslate"><span class="pre">byte_limit</span></code> is not
+applied.</p>
 <p>Rows are read through the relation’s <code class="docutils literal notranslate"><span class="pre">.arrow</span></code> encoding. Metadata is <code class="docutils literal notranslate"><span class="pre">info()</span></code> without
 <code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">size</span></code>, and <code class="docutils literal notranslate"><span class="pre">size_known</span></code>. Column metadata also has <code class="docutils literal notranslate"><span class="pre">arrow_type</span></code>, the column’s type in
 the relation’s Arrow schema. With the storage option <code class="docutils literal notranslate"><span class="pre">column_statistics=&quot;exact&quot;</span></code>, it adds
