@@ -191,6 +191,15 @@ as the native Rust SQL backends.</p>
 <span class="n">orders</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">"SELECT * FROM orders LIMIT ?"</span><span class="p">,</span> <span class="p">[</span><span class="mi">100</span><span class="p">])</span>
 </pre></div>
 </div>
+<p>Read a relation directly with a Parquet reader:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="n">orders</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="s2">"db+duckdb://warehouse.duckdb/main/orders.parquet"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The adapter reads the SQL table and generates Parquet bytes. The URL separates the
+database filename at the first <code class="docutils literal notranslate"><span class="pre">.duckdb</span></code> or <code class="docutils literal notranslate"><span class="pre">.db</span></code> path segment; absolute filenames
+work too, for example <code class="docutils literal notranslate"><span class="pre">db+duckdb:///data/warehouse.duckdb/main/orders.parquet</span></code>.</p>
 <p>To reuse an existing connection, construct the class directly:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">duckdb</span>
 

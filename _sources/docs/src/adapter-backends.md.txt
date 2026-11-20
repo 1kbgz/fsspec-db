@@ -22,6 +22,18 @@ print(fs.ls("/main", detail=False))
 orders = fs.query("SELECT * FROM orders LIMIT ?", [100])
 ```
 
+Read a relation directly with a Parquet reader:
+
+```python
+import pandas as pd
+
+orders = pd.read_parquet("db+duckdb://warehouse.duckdb/main/orders.parquet")
+```
+
+The adapter reads the SQL table and generates Parquet bytes. The URL separates the
+database filename at the first `.duckdb` or `.db` path segment; absolute filenames
+work too, for example `db+duckdb:///data/warehouse.duckdb/main/orders.parquet`.
+
 To reuse an existing connection, construct the class directly:
 
 ```python

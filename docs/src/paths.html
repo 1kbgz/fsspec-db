@@ -525,26 +525,34 @@ are available on the native SQLite, PostgreSQL, and MySQL backends.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">/data/app.db</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">/main/kv/records</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">db+postgresql://user&#64;host:5432/app/public/kv</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">db+duckdb://app.duckdb/main/orders.parquet</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">app.duckdb</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">/main/orders.parquet</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">db+postgresql://user&#64;host:5432/app/public/kv</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">app</span></code> on <code class="docutils literal notranslate"><span class="pre">host</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">/public/kv</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">db+mysql://user&#64;host:3306/app/app/kv</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">db+mysql://user&#64;host:3306/app/app/kv</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">app</span></code> on <code class="docutils literal notranslate"><span class="pre">host</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">/app/kv</span></code></p></td>
 </tr>
 </tbody>
 </table>
 <p>For SQLite, the database ends at the first segment ending in <code class="docutils literal notranslate"><span class="pre">.db</span></code>, <code class="docutils literal notranslate"><span class="pre">.sqlite</span></code>, or
-<code class="docutils literal notranslate"><span class="pre">.sqlite3</span></code>. For PostgreSQL and MySQL, it is the first path segment. A query string
+<code class="docutils literal notranslate"><span class="pre">.sqlite3</span></code>. For DuckDB, it ends at the first segment ending in <code class="docutils literal notranslate"><span class="pre">.duckdb</span></code> or <code class="docutils literal notranslate"><span class="pre">.db</span></code>
+(case-insensitive). DuckDB URLs without either suffix name only the database;
+use an explicit filesystem object for relation reads from databases with other filenames.
+For PostgreSQL and MySQL, it is the first path segment. A query string
 belongs to the connection when the URL has no path inside the database, and to the
-path otherwise.</p>
+path otherwise. DuckDB query parameters on a relation path control that read.</p>
 <p><code class="docutils literal notranslate"><span class="pre">unstrip_protocol(path)</span></code> returns the URL of a path in the same form, so it reopens the same
 database and path: <code class="docutils literal notranslate"><span class="pre">db+sqlite:///data/app.db/main/kv</span></code> for SQLite, and
 <code class="docutils literal notranslate"><span class="pre">db+postgresql://user&#64;host:5432/app/public/kv</span></code> for PostgreSQL and MySQL. Server URLs leave
 out the password, so they are safe to show or store; pass credentials as storage options
-when reopening. A key=value DSN has no URL form, and DuckDB, ODBC, and SQLAlchemy URLs name
-only the database.</p>
+when reopening. DuckDB also includes its database filename when restoring a URL.
+Database-only DuckDB URLs resolve to <code class="docutils literal notranslate"><span class="pre">/</span></code>, the database root. A key=value DSN has no
+URL form, and ODBC and SQLAlchemy URLs name only the database.</p>
 </section>
 <section id="data-views">
 <h2>Data views<a class="headerlink" href="#data-views" title="Link to this heading">¶</a></h2>
