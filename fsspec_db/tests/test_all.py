@@ -397,7 +397,7 @@ def test_duckdb_filesystem_url_path_reads(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     fs, token = fsspec.core.url_to_fs("db+duckdb://app.duckdb")
 
-    assert token == "app.duckdb"
+    assert token == "/"
     assert isinstance(fs, DuckDBDatabaseFileSystem)
     assert fs.query("SELECT name FROM users").column("name").to_pylist() == ["ada"]
     assert [entry["name"] for entry in fs.ls("/main")] == ["/main/users"]

@@ -185,24 +185,29 @@ are available on the native SQLite, PostgreSQL, and MySQL backends.
 
 A URL names the database, optionally followed by a path inside it:
 
-| URL                                            | Database        | Path               |
-| ---------------------------------------------- | --------------- | ------------------ |
-| `db+sqlite://app.db`                           | `app.db`        | `/`                |
-| `db+sqlite:///data/app.db/main/kv/records`     | `/data/app.db`  | `/main/kv/records` |
-| `db+postgresql://user@host:5432/app/public/kv` | `app` on `host` | `/public/kv`       |
-| `db+mysql://user@host:3306/app/app/kv`         | `app` on `host` | `/app/kv`          |
+| URL                                            | Database        | Path                   |
+| ---------------------------------------------- | --------------- | ---------------------- |
+| `db+sqlite://app.db`                           | `app.db`        | `/`                    |
+| `db+sqlite:///data/app.db/main/kv/records`     | `/data/app.db`  | `/main/kv/records`     |
+| `db+duckdb://app.duckdb/main/orders.parquet`   | `app.duckdb`    | `/main/orders.parquet` |
+| `db+postgresql://user@host:5432/app/public/kv` | `app` on `host` | `/public/kv`           |
+| `db+mysql://user@host:3306/app/app/kv`         | `app` on `host` | `/app/kv`              |
 
 For SQLite, the database ends at the first segment ending in `.db`, `.sqlite`, or
-`.sqlite3`. For PostgreSQL and MySQL, it is the first path segment. A query string
+`.sqlite3`. For DuckDB, it ends at the first segment ending in `.duckdb` or `.db`
+(case-insensitive). DuckDB URLs without either suffix name only the database;
+use an explicit filesystem object for relation reads from databases with other filenames.
+For PostgreSQL and MySQL, it is the first path segment. A query string
 belongs to the connection when the URL has no path inside the database, and to the
-path otherwise.
+path otherwise. DuckDB query parameters on a relation path control that read.
 
 `unstrip_protocol(path)` returns the URL of a path in the same form, so it reopens the same
 database and path: `db+sqlite:///data/app.db/main/kv` for SQLite, and
 `db+postgresql://user@host:5432/app/public/kv` for PostgreSQL and MySQL. Server URLs leave
 out the password, so they are safe to show or store; pass credentials as storage options
-when reopening. A key=value DSN has no URL form, and DuckDB, ODBC, and SQLAlchemy URLs name
-only the database.
+when reopening. DuckDB also includes its database filename when restoring a URL.
+Database-only DuckDB URLs resolve to `/`, the database root. A key=value DSN has no
+URL form, and ODBC and SQLAlchemy URLs name only the database.
 
 ## Data views
 
