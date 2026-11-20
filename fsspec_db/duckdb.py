@@ -72,14 +72,34 @@ class DuckDBDatabaseFileSystem(PyDatabaseFileSystem):
     protocol = "db+duckdb"
 
     @classmethod
+    def _strip_protocol(cls, path: Any) -> Any:
+        if isinstance(path, str) and path.startswith("db+duckdb://"):
+            return _split_url(path)[1]
+        return super()._strip_protocol(path)
+
+    @classmethod
     def _get_kwargs_from_urls(cls, path: str) -> dict[str, str]:
-        database = cls._strip_protocol(path)
-        if database == cls.root_marker:
-            return {}
-        return {"database": database}
+        database = _split_url(path)[0]
+        return {} if database is None else {"database": database}
 
     def __init__(self, database: str = ":memory:", *, connection: Any = None, **storage_options: Any) -> None:
         super().__init__(DuckDBDatabase(database, connection=connection), **storage_options)
+        self.database = database
+
+    def unstrip_protocol(self, name: str) -> str:
+        """Return a URL containing the database filename and the path within it."""
+        inner = name.strip("/")
+        return f"db+duckdb://{self.database}/{inner}" if inner else f"db+duckdb://{self.database}"
+
+
+def _split_url(path: str) -> tuple[str | None, str]:
+    """Split after the first .duckdb or .db segment; other URLs name only a database."""
+    rest = path.removeprefix("db+duckdb://").rstrip("/")
+    parts = rest.split("/")
+    for index, part in enumerate(parts):
+        if part.lower().endswith((".duckdb", ".db")):
+            return "/".join(parts[: index + 1]), "/" + "/".join(parts[index + 1 :]).strip("/")
+    return rest or None, "/"
 
 
 fsspec.register_implementation("db+duckdb", DuckDBDatabaseFileSystem, clobber=True)
